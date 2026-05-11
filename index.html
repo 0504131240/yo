@@ -656,7 +656,7 @@
 
       <div class="form-row">
         <label>סטטוס תשלום</label>
-        <select id="mf-status">
+        <select id="mf-status" onchange="autoFillPayDate('mf-paydate', this.value)">
           <option value="unpaid">לא שולם</option>
           <option value="paid">שולם</option>
         </select>
@@ -721,7 +721,7 @@
 
       <div class="form-row">
         <label>סטטוס תשלום</label>
-        <select id="f-status">
+        <select id="f-status" onchange="autoFillPayDate('f-paydate', this.value)">
           <option value="unpaid">לא שולם</option>
           <option value="paid">שולם</option>
         </select>
@@ -1005,10 +1005,32 @@
     return `<span class="badge badge-unpaid badge-clickable" onclick="toggleStatus('${t.id}')" title="לחץ לסימון כשולם">⚠️ לא שולם</span>`;
   }
 
+  function autoFillPayDate(fieldId, status) {
+    const field = document.getElementById(fieldId);
+    if (status === 'paid' && !field.value) {
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, '0');
+      const d = String(today.getDate()).padStart(2, '0');
+      field.value = y + '-' + m + '-' + d;
+    } else if (status === 'unpaid') {
+      field.value = '';
+    }
+  }
+
   function toggleStatus(tid) {
     const t = treatments.find(x => x.id === tid);
     if (!t) return;
-    t.status = t.status === 'paid' ? 'unpaid' : 'paid';
+    const wasPaid = t.status === 'paid';
+    t.status = wasPaid ? 'unpaid' : 'paid';
+    // אם שונה לשולם ואין תאריך תשלום — ממלא אוטומטית
+    if (!wasPaid && !t.payDate) {
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, '0');
+      const d = String(today.getDate()).padStart(2, '0');
+      t.payDate = y + '-' + m + '-' + d;
+    }
     save();
     render();
   }
@@ -1452,7 +1474,7 @@
     `;
     document.getElementById('mf-date').value = '';
     document.getElementById('mf-paydate').value = '';
-    document.getElementById('mf-amount').value = '';
+    document.getElementById('mf-amount').value = '350';
     document.getElementById('mf-status').value = 'unpaid';
     document.getElementById('mf-notes').value = '';
     document.getElementById('meetingStep1').style.display = 'none';
