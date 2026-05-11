@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ניהול לקוחות</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --bg: #f5f3ee;
+    --surface: #ffffff;
+    --border: #e2ddd6;
+    --text: #1a1814;
+    --muted: #8a8278;
+    --accent: #c8521a;
+    --accent-light: #fdf0e8;
+    --green: #2d7a4f;
+    --green-light: #e8f5ee;
+    --red: #c0392b;
+    --red-light: #fdecea;
+    --yellow: #d4880a;
+    --yellow-light: #fef8e7;
+    --shadow: 0 2px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Heebo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    direction: rtl;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--text);
+    color: #f5f3ee;
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .brand-name {
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .brand-sub {
+    font-size: 12px;
+    opacity: 0.5;
+    font-weight: 300;
+  }
+
+  .btn-add {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+
+  .btn-add:hover {
+    background: #b04415;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(200,82,26,0.3);
+  }
+
+  /* STATS */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 32px 40px 0;
+    max-width: 1200px;
+    margin: 0 auto;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.orange { color: var(--accent); }
+
+  .stat-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* FILTERS */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+    animation: fadeUp 0.5s ease 0.1s both;
+  }
+
+  .search-wrap {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+  }
+
+  .search-wrap input {
+    width: 100%;
+    padding: 11px 40px 11px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-wrap input:focus { border-color: var(--accent); }
+
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  .filter-btn {
+    padding: 11px 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-family: 'Heebo', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .filter-btn.active {
+    background: var(--text);
+    color: white;
+    border-color: var(--text);
+  }
+
+  .filter-btn.active.red-filter {
+    background: var(--red);
+    border-color: var(--red);
+  }
+
+  /* TABLE */
+  .table-wrap {
+    padding: 0 40px 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+    animation: fadeUp 0.5s ease 0.15s both;
+  }
+
+  .table-container {
+    background: var(--surface);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    background: #f9f7f4;
+    padding: 14px 20px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+    animation: rowIn 0.3s ease both;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #faf9f7; }
+
+  td {
+    padding: 16px 20px;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+
+  .client-name {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .client-phone {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .meeting-date {
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .meeting-notes {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .amount {
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .badge-paid { background: var(--green-light); color: var(--green); }
+  .badge-unpaid { background: var(--red-light); color: var(--red); }
+  .badge-clickable {
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    padding: 8px 16px;
+    font-size: 13px;
+    min-width: 100px;
+    justify-content: center;
+  }
+  .badge-clickable:hover { filter: brightness(0.9); }
+  .badge-clickable:active {
+    transform: scale(0.93);
+    filter: brightness(0.8);
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .action-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+
+  .action-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+  .action-btn.delete:hover { border-color: var(--red); background: var(--red-light); }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+  .empty-state p { font-size: 15px; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,24,20,0.5);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 32px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: var(--shadow-lg);
+    animation: modalIn 0.3s ease;
+  }
+
+  .modal-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--muted);
+    line-height: 1;
+  }
+
+  .form-row { margin-bottom: 16px; }
+
+  .form-row label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .form-row input,
+  .form-row select,
+  .form-row textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 0.2s;
+    direction: rtl;
+  }
+
+  .form-row input:focus,
+  .form-row select:focus,
+  .form-row textarea:focus { border-color: var(--accent); }
+
+  .form-row textarea { resize: vertical; min-height: 70px; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .btn-submit {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.2s;
+  }
+
+  .btn-submit:hover { background: #b04415; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes rowIn {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .month-nav-wrap {
+    padding: 24px 40px 0;
+    max-width: 1200px;
+    margin: 0 auto;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .income-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 12px 40px 0;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 768px) {
+    .header {
+      padding: 14px 16px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+    }
+    .header-brand { justify-content: flex-start; }
+    .header-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .header-actions .btn-add {
+      justify-content: center;
+      padding: 11px 8px;
+      font-size: 13px;
+    }
+    .btn-add-wide {
+      grid-column: 1 / -1;
+    }
+    .month-nav-wrap { padding: 16px 16px 0; }
+    .income-row { padding: 10px 16px 0; }
+    .stats { grid-template-columns: 1fr 1fr; padding: 16px 16px 0; }
+    .controls { padding: 12px 16px; }
+    .table-wrap { padding: 0 12px 40px; }
+    .form-grid { grid-template-columns: 1fr; }
+
+    td { padding: 12px 10px; }
+    thead th { padding: 10px; font-size: 11px; }
+
+    th:nth-child(3), td:nth-child(3) { display: none; }
+
+    .badge-clickable {
+      padding: 10px 12px;
+      min-width: 90px;
+      font-size: 12px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <div class="brand-icon">📋</div>
+    <div>
+      <div class="brand-name">לאלי שטיינהרט</div>
+      <div class="brand-sub">קלינאית</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <span id="sync-status" style="font-size:12px;color:var(--muted);align-self:center;transition:opacity 0.5s;white-space:nowrap;"></span>
+    <button class="btn-add" style="background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,0.15);padding:10px 16px;" onclick="loadFromSheets()" title="רענן נתונים">🔄</button>
+    <button class="btn-add btn-add-wide" style="background:var(--green);" onclick="openMeetingModal()">
+      <span>📅</span> טיפול חדש
+    </button>
+    <button class="btn-add btn-add-wide" style="background:var(--surface);color:var(--text);border:1px solid var(--border);" onclick="openClientsPanel()">
+      <span>👥</span> ניהול לקוחות
+    </button>
+  </div>
+</div>
+
+<!-- MONTH NAVIGATOR -->
+<div class="month-nav-wrap">
+  <div style="display:flex;align-items:center;gap:16px;background:var(--surface);border-radius:14px;padding:16px 24px;border:1px solid var(--border);box-shadow:var(--shadow);">
+    <button onclick="changeMonth(-1)" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">‹</button>
+    <div style="flex:1;text-align:center;">
+      <div id="month-label" style="font-size:1.2rem;font-weight:800;color:var(--text);"></div>
+    </div>
+    <button onclick="changeMonth(1)" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">›</button>
+    <button onclick="goToToday()" style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:13px;font-family:'Heebo',sans-serif;font-weight:600;color:var(--muted);transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">היום</button>
+  </div>
+</div>
+
+<div class="stats" id="stats" style="grid-template-columns: repeat(3,1fr); gap:12px;">
+  <div class="stat-card">
+    <div class="stat-label">טיפולים החודש</div>
+    <div class="stat-value orange" id="stat-total">0</div>
+    <div class="stat-sub">טיפולים</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">שילמו החודש</div>
+    <div class="stat-value green" id="stat-paid">0</div>
+    <div class="stat-sub">לקוחות</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">טרם שילמו</div>
+    <div class="stat-value red" id="stat-unpaid">0</div>
+    <div class="stat-sub">החודש</div>
+  </div>
+</div>
+
+<!-- Income Row -->
+<div class="income-row">
+  <div class="stat-card" style="border:2px solid var(--green);">
+    <div class="stat-label">💰 הכנסות החודש</div>
+    <div class="stat-value green" id="stat-revenue-month">₪0</div>
+    <div class="stat-sub">שולם החודש</div>
+  </div>
+  <div class="stat-card" style="border:2px solid var(--accent);">
+    <div class="stat-label">📈 הכנסות השנה</div>
+    <div class="stat-value orange" id="stat-revenue-year">₪0</div>
+    <div class="stat-sub" id="stat-year-label">שולם השנה</div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="search-wrap">
+    <input type="text" placeholder="חיפוש לפי שם, טלפון..." id="searchInput" oninput="render()">
+    <span class="search-icon">🔍</span>
+  </div>
+  <div style="position:relative;">
+    <select id="clientFilter" onchange="setClientFilter(this.value)" style="padding:11px 36px 11px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-family:'Heebo',sans-serif;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;outline:none;transition:all 0.2s;appearance:none;-webkit-appearance:none;min-width:160px;">
+      <option value="">👤 כל הלקוחות</option>
+    </select>
+    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted);font-size:12px;">▾</span>
+  </div>
+  <button class="filter-btn active" id="filter-all" onclick="setFilter('all')">הכל</button>
+  <button class="filter-btn" id="filter-unpaid" onclick="setFilter('unpaid')">⚠️ לא שילמו</button>
+  <button class="filter-btn" id="filter-paid" onclick="setFilter('paid')">✅ שילמו</button>
+</div>
+
+<div class="table-wrap">
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>לקוח</th>
+          <th>תאריך טיפול</th>
+          <th>הערות</th>
+          <th>סכום</th>
+          <th>סטטוס תשלום</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- MEETING MODAL -->
+<div class="modal-overlay" id="meetingModalOverlay" onclick="closeMeetingOnOverlay(event)">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">
+      <span>📅 טיפול חדש</span>
+      <button class="modal-close" onclick="closeMeetingModal()">✕</button>
+    </div>
+
+    <!-- Step 1: search client -->
+    <div id="meetingStep1">
+      <div class="form-row">
+        <label>חיפוש לקוח קיים</label>
+        <input type="text" id="meeting-search" placeholder="הקלד שם או טלפון..." oninput="filterMeetingClients()" autocomplete="off">
+      </div>
+      <div id="meeting-client-list" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;margin-top:4px;"></div>
+    </div>
+
+    <!-- Step 2: fill meeting details -->
+    <div id="meetingStep2" style="display:none;">
+      <div id="meeting-selected-client" style="background:var(--accent-light);border:1px solid var(--accent);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;">
+      </div>
+
+      <div class="form-grid">
+        <div class="form-row">
+          <label>תאריך טיפול</label>
+          <input type="date" id="mf-date">
+        </div>
+        <div class="form-row">
+          <label>סכום לתשלום (₪)</label>
+          <input type="number" id="mf-amount" placeholder="0" min="0">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>סטטוס תשלום</label>
+        <select id="mf-status">
+          <option value="unpaid">לא שילם</option>
+          <option value="paid">שילם</option>
+        </select>
+      </div>
+
+
+      <div class="form-row">
+        <label>הערות</label>
+        <textarea id="mf-notes" placeholder="פרטים נוספים על הטיפול..."></textarea>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button class="btn-submit" style="background:var(--muted);" onclick="backToSearch()">← חזור</button>
+        <button class="btn-submit" onclick="saveMeeting()">שמור טיפול</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeOnOverlay(event)">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modalTitle">לקוח חדש</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <!-- Client fields -->
+    <div id="clientFields">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>שם מלא *</label>
+          <input type="text" id="f-name" placeholder="ישראל ישראלי">
+        </div>
+        <div class="form-row">
+          <label>טלפון</label>
+          <input type="tel" id="f-phone" placeholder="050-0000000">
+        </div>
+      </div>
+    </div>
+
+    <!-- Treatment fields (shown when editing a treatment) -->
+    <div id="treatmentFields" style="display:none">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>תאריך טיפול</label>
+          <input type="date" id="f-date">
+        </div>
+        <div class="form-row">
+          <label>סכום לתשלום (₪)</label>
+          <input type="number" id="f-amount" placeholder="0" min="0">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>סטטוס תשלום</label>
+        <select id="f-status">
+          <option value="unpaid">לא שילם</option>
+          <option value="paid">שילם</option>
+        </select>
+      </div>
+
+
+      <div class="form-row">
+        <label>הערות</label>
+        <textarea id="f-notes" placeholder="פרטים נוספים על הטיפול..."></textarea>
+      </div>
+    </div>
+
+    <button class="btn-submit" onclick="saveForm()">שמור</button>
+  </div>
+</div>
+
+<!-- CLIENTS PANEL -->
+<div id="clientsPanelOverlay" onclick="closeClientsPanelOnOverlay(event)" style="position:fixed;inset:0;background:rgba(26,24,20,0.5);backdrop-filter:blur(4px);z-index:200;display:none;align-items:stretch;justify-content:flex-start;">
+  <div id="clientsPanel" style="background:var(--surface);width:100%;max-width:540px;height:100%;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);animation:slideInPanel 0.3s ease;">
+    <!-- Panel Header -->
+    <div style="padding:28px 28px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div>
+        <div style="font-size:1.3rem;font-weight:800;">👥 ניהול לקוחות</div>
+        <div id="clients-count-label" style="font-size:12px;color:var(--muted);margin-top:3px;"></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button onclick="openNewClientFromPanel()" style="padding:9px 18px;background:var(--accent);color:white;border:none;border-radius:9px;font-family:'Heebo',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">+ לקוח חדש</button>
+        <button onclick="closeClientsPanel()" style="width:36px;height:36px;border:1px solid var(--border);background:var(--bg);border-radius:9px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);">✕</button>
+      </div>
+    </div>
+    <!-- Search inside panel -->
+    <div style="padding:16px 28px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <div style="position:relative;">
+        <input type="text" id="panelSearch" placeholder="חיפוש לקוח..." oninput="renderClientsPanel()" style="width:100%;padding:10px 40px 10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;outline:none;background:var(--bg);">
+        <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);">🔍</span>
+      </div>
+    </div>
+    <!-- Clients list -->
+    <div id="clientsPanelList" style="flex:1;overflow-y:auto;padding:12px 16px;"></div>
+  </div>
+</div>
+
+<style>
+@keyframes slideInPanel {
+  from { opacity:0; transform:translateX(-40px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+
+/* Patient History Modal */
+#patientHistoryOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26,24,20,0.55);
+  backdrop-filter: blur(4px);
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#patientHistoryOverlay.open { display: flex; }
+#patientHistoryModal {
+  background: var(--surface);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 620px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  animation: modalIn 0.3s ease;
+  overflow: hidden;
+}
+.ph-header {
+  padding: 24px 28px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ph-body {
+  overflow-y: auto;
+  padding: 16px 24px 24px;
+  flex: 1;
+}
+.year-group {
+  margin-bottom: 24px;
+}
+.year-label {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 1px;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.year-summary {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.ph-row {
+  display: grid;
+  grid-template-columns: 110px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  margin-bottom: 7px;
+  background: var(--bg);
+  font-size: 13px;
+  transition: box-shadow 0.15s;
+}
+.ph-row:hover { box-shadow: var(--shadow); }
+.ph-totals {
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ph-total-item { font-size: 13px; color: var(--muted); }
+.ph-total-item strong { color: var(--text); font-size: 15px; display: block; }
+
+</style>
+
+<!-- PATIENT HISTORY MODAL -->
+<div id="patientHistoryOverlay" onclick="closePatientHistoryOnOverlay(event)">
+  <div id="patientHistoryModal">
+    <div class="ph-header">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div id="ph-title" style="font-size:1.25rem;font-weight:800;"></div>
+        <button onclick="closePatientHistory()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);line-height:1;">✕</button>
+      </div>
+      <div id="ph-subtitle" style="font-size:12px;color:var(--muted);"></div>
+    </div>
+    <div class="ph-body" id="ph-body"></div>
+  </div>
+</div>
+
+<script>
+  // ---- DATA MODEL ----
+  // clients: [{id, name, phone}]
+  // treatments: [{id, clientId, date, amount, status, paidAmount, notes}]
+
+  // ================================================================
+  //  הגדרות Google Sheets – הדביקי כאן את כתובת ה-Web App שלך
+  // ================================================================
+  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwP1VSDN6S5PPhaxXYI1iEHgWQ7Qi8_yl46CnaC25N6P9LZwwy27BWGmLNIX7kTyNfK/exec';
+  // ================================================================
+
+  let clients = [];
+  let treatments = [];
+  let currentFilter = 'all';
+  let selectedClientFilter = '';
+  let editingClientId = null;
+  let editingTreatmentId = null;
+  let isSyncing = false;
+
+  const now = new Date();
+  let viewYear = now.getFullYear();
+  let viewMonth = now.getMonth();
+
+  const hebrewMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+  // ---- סנכרון עם Google Sheets ----
+  function showSyncStatus(msg, color) {
+    let el = document.getElementById('sync-status');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = color || 'var(--muted)';
+    el.style.opacity = '1';
+    if (color === 'var(--green)') {
+      setTimeout(() => { el.style.opacity = '0'; }, 2500);
+    }
+  }
+
+  async function loadFromSheets() {
+    if (!SHEETS_URL || SHEETS_URL.includes('הכנס')) {
+      showSyncStatus('⚠️ טרם הוגדר חיבור ל-Google Sheets', 'var(--yellow)');
+      return;
+    }
+    showSyncStatus('🔄 טוען נתונים...', 'var(--muted)');
+    try {
+      const res = await fetch(SHEETS_URL + '?action=load');
+      const text = await res.text();
+      const data = JSON.parse(text);
+      if (data.error) throw new Error(data.error);
+      clients = data.clients || [];
+      treatments = (data.treatments || []).map(t => {
+        let date = String(t.date || '');
+        if (date && !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const parsed = new Date(date);
+          if (!isNaN(parsed)) {
+            const y = parsed.getFullYear();
+            const mo = String(parsed.getMonth() + 1).padStart(2, '0');
+            const d = String(parsed.getDate()).padStart(2, '0');
+            date = y + '-' + mo + '-' + d;
+          } else { date = ''; }
+        }
+        return { ...t, id: String(t.id), date, status: t.status === 'partial' ? 'unpaid' : t.status };
+      });
+      showSyncStatus('✅ נטען בהצלחה', 'var(--green)');
+      render();
+    } catch (err) {
+      showSyncStatus('❌ שגיאת טעינה: ' + err.message, 'var(--red)');
+    }
+  }
+
+  async function save() {
+    if (!SHEETS_URL || SHEETS_URL.includes('הכנס')) return;
+    if (isSyncing) return;
+    isSyncing = true;
+    showSyncStatus('💾 שומר...', 'var(--muted)');
+    try {
+      const data = encodeURIComponent(JSON.stringify({ clients, treatments }));
+      const res = await fetch(SHEETS_URL + '?action=save&data=' + data);
+      const text = await res.text();
+      const result = JSON.parse(text);
+      if (result.error) throw new Error(result.error);
+      showSyncStatus('✅ נשמר', 'var(--green)');
+    } catch (err) {
+      showSyncStatus('❌ שגיאת שמירה: ' + err.message, 'var(--red)');
+    } finally {
+      isSyncing = false;
+    }
+  }
+
+  function changeMonth(dir) {
+    viewMonth += dir;
+    if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    render();
+  }
+
+  function goToToday() {
+    const t = new Date();
+    viewYear = t.getFullYear();
+    viewMonth = t.getMonth();
+    render();
+  }
+
+  function treatmentRevenue(t) {
+    if (t.status === 'paid') return t.amount || 0;
+    return 0;
+  }
+
+  function formatDate(d) {
+    if (!d) return '—';
+    const [y, m, day] = d.split('-');
+    return `${day}/${m}/${y}`;
+  }
+
+  function statusBadge(t) {
+    if (t.status === 'paid') {
+      return `<span class="badge badge-paid badge-clickable" onclick="toggleStatus('${t.id}')" title="לחץ לשינוי">✅ שילם</span>`;
+    }
+    return `<span class="badge badge-unpaid badge-clickable" onclick="toggleStatus('${t.id}')" title="לחץ לסימון כשולם">⚠️ לא שילם</span>`;
+  }
+
+  function toggleStatus(tid) {
+    const t = treatments.find(x => x.id === tid);
+    if (!t) return;
+    t.status = t.status === 'paid' ? 'unpaid' : 'paid';
+    save();
+    render();
+  }
+
+  function setClientFilter(val) {
+    selectedClientFilter = val;
+    const sel = document.getElementById('clientFilter');
+    sel.style.color = val ? 'var(--text)' : 'var(--muted)';
+    sel.style.borderColor = val ? 'var(--accent)' : 'var(--border)';
+    sel.style.background = val ? 'var(--accent-light)' : 'var(--surface)';
+    render();
+  }
+
+  function setFilter(f) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'red-filter'));
+    const btn = document.getElementById('filter-' + f);
+    btn.classList.add('active');
+    if (f === 'unpaid') btn.classList.add('red-filter');
+    render();
+  }
+
+  function render() {
+    document.getElementById('month-label').textContent = `${hebrewMonths[viewMonth]} ${viewYear}`;
+    document.getElementById('stat-year-label').textContent = `שולם ב-${viewYear}`;
+
+    // Populate client dropdown
+    const clientFilter = document.getElementById('clientFilter');
+    const currentVal = clientFilter.value;
+    const sortedClients = [...clients].sort((a,b) => a.name.localeCompare(b.name, 'he'));
+    clientFilter.innerHTML = '<option value="">👤 כל הלקוחות</option>' +
+      sortedClients.map(c => `<option value="${c.id}" ${String(c.id) === String(selectedClientFilter) ? 'selected' : ''}>${c.name}</option>`).join('');
+
+    const search = document.getElementById('searchInput').value.toLowerCase();
+
+    // All treatments in this month
+    const monthTreatments = treatments.filter(t => {
+      if (!t.date) return false;
+      const [y, m] = t.date.split('-').map(Number);
+      return y === viewYear && (m - 1) === viewMonth;
+    });
+
+    // Filter by search + status + client
+    let filtered = monthTreatments.filter(t => {
+      const c = clients.find(x => x.id === t.clientId);
+      if (!c) return false;
+      const matchSearch = c.name.toLowerCase().includes(search) || (c.phone || '').includes(search);
+      const matchFilter = currentFilter === 'all' || t.status === currentFilter;
+      const matchClient = !selectedClientFilter || String(t.clientId) === String(selectedClientFilter);
+      return matchSearch && matchFilter && matchClient;
+    });
+
+    // Sort by date desc
+    filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    const tbody = document.getElementById('tableBody');
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr><td colspan="6">
+          <div class="empty-state">
+            <div class="icon">${currentFilter === 'unpaid' && monthTreatments.length > 0 ? '🎉' : '📭'}</div>
+            <p>${currentFilter === 'unpaid' && monthTreatments.length > 0 ? 'כל הלקוחות שילמו! 🎉' : 'אין טיפולים ב' + hebrewMonths[viewMonth]}</p>
+          </div>
+        </td></tr>`;
+    } else {
+      tbody.innerHTML = filtered.map(t => {
+        const c = clients.find(x => x.id === t.clientId) || { name: '?', phone: '' };
+        return `
+        <tr>
+          <td>
+            <div class="client-name">${c.name}</div>
+            ${c.phone ? `<div class="client-phone">📞 ${c.phone}</div>` : ''}
+          </td>
+          <td><div class="meeting-date">${formatDate(t.date)}</div></td>
+          <td><div class="meeting-notes">${t.notes || '—'}</div></td>
+          <td><div class="amount">${t.amount ? '₪' + t.amount.toLocaleString() : '—'}</div></td>
+          <td>${statusBadge(t)}</td>
+          <td>
+            <div class="actions">
+              <button class="action-btn" onclick="openTreatmentEdit('${t.id}')" title="עריכה">✏️</button>
+              <button class="action-btn delete" onclick="deleteTreatment('${t.id}')" title="מחיקה">🗑️</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Stats
+    document.getElementById('stat-total').textContent = monthTreatments.length;
+    document.getElementById('stat-paid').textContent = monthTreatments.filter(t => t.status === 'paid').length;
+    document.getElementById('stat-unpaid').textContent = monthTreatments.filter(t => t.status === 'unpaid').length;
+
+    const monthRevenue = monthTreatments.reduce((sum, t) => sum + treatmentRevenue(t), 0);
+    document.getElementById('stat-revenue-month').textContent = '₪' + monthRevenue.toLocaleString();
+
+    const yearTreatments = treatments.filter(t => t.date && t.date.startsWith(viewYear + ''));
+    const yearRevenue = yearTreatments.reduce((sum, t) => sum + treatmentRevenue(t), 0);
+    document.getElementById('stat-revenue-year').textContent = '₪' + yearRevenue.toLocaleString();
+    const statYearEl = document.getElementById('stat-year-treatments');
+    if (statYearEl) statYearEl.textContent = yearTreatments.length + ' טיפולים השנה';
+  }
+
+  let returnToPanel = false;
+
+  function openNewClientFromPanel() {
+    returnToPanel = true;
+    closeClientsPanel();
+    openModal(null);
+  }
+
+  function editClientFromPanel(id) {
+    returnToPanel = true;
+    closeClientsPanel();
+    openModal(id);
+  }
+
+  // ---- CLIENT MODAL (שם + טלפון בלבד) ----
+  function openModal(id = null) {
+    editingClientId = id;
+    document.getElementById('modalOverlay').classList.add('open');
+    if (id !== null) {
+      const c = clients.find(x => x.id === id);
+      document.getElementById('modalTitle').textContent = 'עריכת לקוח';
+      document.getElementById('f-name').value = c.name;
+      document.getElementById('f-phone').value = c.phone || '';
+    } else {
+      document.getElementById('modalTitle').textContent = 'לקוח חדש';
+      document.getElementById('f-name').value = '';
+      document.getElementById('f-phone').value = '';
+    }
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    editingClientId = null;
+    editingTreatmentId = null;
+    document.getElementById('clientFields').style.display = 'block';
+    document.getElementById('treatmentFields').style.display = 'none';
+  }
+
+  function closeOnOverlay(e) {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  }
+
+  function saveClient() {
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) { alert('אנא הכנס שם לקוח'); return; }
+
+    if (editingClientId !== null) {
+      clients = clients.map(c => c.id === editingClientId
+        ? { ...c, name, phone: document.getElementById('f-phone').value.trim() }
+        : c);
+    } else {
+      clients.push({ id: Date.now(), name, phone: document.getElementById('f-phone').value.trim() });
+    }
+
+    save();
+    closeModal();
+    render();
+    if (returnToPanel || document.getElementById('clientsPanelOverlay').style.display === 'flex') {
+      returnToPanel = false;
+      openClientsPanel();
+    }
+  }
+
+  // ---- CLIENTS PANEL ----
+  function openClientsPanel() {
+    document.getElementById('clientsPanelOverlay').style.display = 'flex';
+    document.getElementById('panelSearch').value = '';
+    renderClientsPanel();
+    setTimeout(() => document.getElementById('panelSearch').focus(), 100);
+  }
+
+  function closeClientsPanel() {
+    document.getElementById('clientsPanelOverlay').style.display = 'none';
+  }
+
+  function closeClientsPanelOnOverlay(e) {
+    if (e.target === document.getElementById('clientsPanelOverlay')) closeClientsPanel();
+  }
+
+  function renderClientsPanel() {
+    const q = document.getElementById('panelSearch').value.toLowerCase();
+    const filtered = [...clients]
+      .filter(c => c.name.toLowerCase().includes(q) || (c.phone||'').includes(q))
+      .sort((a,b) => a.name.localeCompare(b.name, 'he'));
+
+    document.getElementById('clients-count-label').textContent = `${clients.length} לקוחות במערכת`;
+
+    const list = document.getElementById('clientsPanelList');
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--muted);">
+        <div style="font-size:2.5rem;margin-bottom:12px;">🔍</div>
+        <div>לא נמצאו לקוחות</div>
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map(c => {
+      const clientTreatments = treatments.filter(t => t.clientId === c.id);
+      const totalPaid = clientTreatments.filter(t => t.status === 'paid').reduce((s,t) => s + (t.amount||0), 0);
+      const unpaidCount = clientTreatments.filter(t => t.status === 'unpaid').length;
+      return `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:10px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='var(--shadow-lg)'" onmouseout="this.style.boxShadow='none'">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div style="min-width:0;">
+            <div style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
+            ${c.phone ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">📞 ${c.phone}</div>` : '<div style="font-size:12px;color:var(--muted);margin-top:2px;">אין טלפון</div>'}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            ${unpaidCount > 0 ? `<span style="background:var(--red-light);color:var(--red);font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;">חוב: ${unpaidCount} טיפולים</span>` : ''}
+            <button onclick="editClientFromPanel(${c.id})" title="עריכה" style="width:34px;height:34px;border:1px solid var(--border);background:var(--surface);border-radius:8px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='var(--accent-light)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">✏️</button>
+            <button onclick="deletePanelClient(${c.id})" title="מחיקה" style="width:34px;height:34px;border:1px solid var(--border);background:var(--surface);border-radius:8px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--red)';this.style.background='var(--red-light)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">🗑️</button>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:16px;">
+          <div style="font-size:12px;color:var(--muted);">סה"כ טיפולים: <span style="font-weight:700;color:var(--text);">${clientTreatments.length}</span></div>
+          <div style="font-size:12px;color:var(--muted);">שולם: <span style="font-weight:700;color:var(--green);">₪${totalPaid.toLocaleString()}</span></div>
+          <div style="margin-right:auto;display:flex;gap:10px;align-items:center;">
+            <button onclick="openPatientHistory(${c.id})" style="font-size:11px;color:var(--text);font-weight:700;background:var(--border);border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:4px 10px;border-radius:6px;transition:background 0.15s;" onmouseover="this.style.background='#d5cfc8'" onmouseout="this.style.background='var(--border)'">📋 כל השנים</button>
+            <button onclick="filterByClient(${c.id})" style="font-size:11px;color:var(--accent);font-weight:600;background:none;border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:0;">הצג חודש ←</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function deletePanelClient(id) {
+    const c = clients.find(x => x.id === id);
+    const count = treatments.filter(t => t.clientId === id).length;
+    const msg = count > 0
+      ? `למחוק את ${c.name} וכל ${count} הטיפולים שלו?`
+      : `למחוק את ${c.name}?`;
+    if (!confirm(msg)) return;
+    clients = clients.filter(c => c.id !== id);
+    treatments = treatments.filter(t => t.clientId !== id);
+    save();
+    render();
+    renderClientsPanel();
+  }
+
+  function filterByClient(id) {
+    selectedClientFilter = String(id);
+    const sel = document.getElementById('clientFilter');
+    sel.style.color = 'var(--text)';
+    sel.style.borderColor = 'var(--accent)';
+    sel.style.background = 'var(--accent-light)';
+    closeClientsPanel();
+    render();
+  }
+
+  // ---- PATIENT HISTORY MODAL ----
+  function openPatientHistory(clientId) {
+    const c = clients.find(x => x.id === clientId);
+    if (!c) return;
+    const clientTreatments = treatments.filter(t => t.clientId === clientId && t.date);
+    clientTreatments.sort((a, b) => b.date.localeCompare(a.date));
+
+    // Group by year
+    const byYear = {};
+    for (const t of clientTreatments) {
+      const y = t.date.split('-')[0];
+      if (!byYear[y]) byYear[y] = [];
+      byYear[y].push(t);
+    }
+    const years = Object.keys(byYear).sort((a, b) => b - a);
+
+    const totalPaid = clientTreatments.filter(t => t.status === 'paid').reduce((s, t) => s + (t.amount || 0), 0);
+    const totalUnpaid = clientTreatments.filter(t => t.status === 'unpaid').reduce((s, t) => s + (t.amount || 0), 0);
+    const totalCount = clientTreatments.length;
+
+    document.getElementById('ph-title').textContent = '📋 היסטוריית טיפולים – ' + c.name;
+    document.getElementById('ph-subtitle').textContent = c.phone ? '📞 ' + c.phone : '';
+
+    let html = `
+      <div class="ph-totals">
+        <div class="ph-total-item"><strong>${totalCount}</strong>סה"כ טיפולים</div>
+        <div class="ph-total-item"><strong style="color:var(--green);">₪${totalPaid.toLocaleString()}</strong>שולם</div>
+        ${totalUnpaid > 0 ? `<div class="ph-total-item"><strong style="color:var(--red);">₪${totalUnpaid.toLocaleString()}</strong>חוב פתוח</div>` : ''}
+        <div class="ph-total-item"><strong>${years.length}</strong>${years.length === 1 ? 'שנה' : 'שנים'} פעיל</div>
+      </div>`;
+
+    if (years.length === 0) {
+      html += `<div style="text-align:center;padding:40px;color:var(--muted);">אין טיפולים רשומים</div>`;
+    } else {
+      for (const year of years) {
+        const yts = byYear[year];
+        const yPaid = yts.filter(t => t.status === 'paid').reduce((s, t) => s + (t.amount || 0), 0);
+        const yUnpaid = yts.filter(t => t.status === 'unpaid').length;
+        html += `
+          <div class="year-group">
+            <div class="year-label">
+              <span>📅 ${year}</span>
+              <span class="year-summary">
+                <span style="color:var(--text);">${yts.length} טיפולים</span>
+                <span style="color:var(--green);">₪${yPaid.toLocaleString()} שולם</span>
+                ${yUnpaid > 0 ? `<span style="color:var(--red);">${yUnpaid} לא שולמו</span>` : ''}
+              </span>
+            </div>`;
+        for (const t of yts) {
+          html += `
+            <div class="ph-row">
+              <div style="font-weight:600;color:var(--text);">${formatDate(t.date)}</div>
+              <div style="color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.notes || '—'}</div>
+              <div style="font-weight:700;">${t.amount ? '₪' + t.amount.toLocaleString() : '—'}</div>
+              <div>${t.status === 'paid'
+                ? '<span style="background:var(--green-light);color:var(--green);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✅ שילם</span>'
+                : '<span style="background:var(--red-light);color:var(--red);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">⚠️ חוב</span>'
+              }</div>
+            </div>`;
+        }
+        html += `</div>`;
+      }
+    }
+
+    document.getElementById('ph-body').innerHTML = html;
+    document.getElementById('patientHistoryOverlay').classList.add('open');
+  }
+
+  function closePatientHistory() {
+    document.getElementById('patientHistoryOverlay').classList.remove('open');
+  }
+
+  function closePatientHistoryOnOverlay(e) {
+    if (e.target === document.getElementById('patientHistoryOverlay')) closePatientHistory();
+  }
+
+
+  // ---- TREATMENT EDIT MODAL ----
+  function openTreatmentEdit(tid) {
+    editingTreatmentId = tid;
+    const t = treatments.find(x => x.id === tid);
+    const c = clients.find(x => x.id === t.clientId) || { name: '' };
+    document.getElementById('modalOverlay').classList.add('open');
+    document.getElementById('modalTitle').textContent = 'עריכת טיפול – ' + c.name;
+    document.getElementById('clientFields').style.display = 'none';
+    document.getElementById('treatmentFields').style.display = 'block';
+    document.getElementById('f-date').value = t.date || '';
+    document.getElementById('f-amount').value = t.amount || '';
+    document.getElementById('f-status').value = t.status || 'unpaid';
+    document.getElementById('f-notes').value = t.notes || '';
+  }
+
+  function saveTreatmentEdit() {
+    treatments = treatments.map(t => t.id === editingTreatmentId ? {
+      ...t,
+      date: document.getElementById('f-date').value,
+      amount: parseFloat(document.getElementById('f-amount').value) || 0,
+      status: document.getElementById('f-status').value,
+      paidAmount: 0,
+      notes: document.getElementById('f-notes').value.trim(),
+    } : t);
+    save();
+    closeModal();
+    render();
+  }
+
+  function deleteTreatment(tid) {
+    if (!confirm('למחוק טיפול זה?')) return;
+    treatments = treatments.filter(t => t.id != tid);
+    save();
+    render();
+  }
+
+  // closeModal already defined below - this comment replaces duplicate
+
+  // Override saveClient to handle both modes
+  function saveForm() {
+    if (editingTreatmentId !== null) {
+      saveTreatmentEdit();
+    } else {
+      saveClient();
+    }
+  }
+
+  // Show/hide paid amount field - removed (no partial status)
+
+  // ---- MEETING MODAL (טיפול חדש) ----
+  let selectedClientId = null;
+
+  function openMeetingModal() {
+    selectedClientId = null;
+    document.getElementById('meeting-search').value = '';
+    document.getElementById('meetingStep1').style.display = 'block';
+    document.getElementById('meetingStep2').style.display = 'none';
+    document.getElementById('meetingModalOverlay').classList.add('open');
+    filterMeetingClients();
+  }
+
+  function closeMeetingModal() {
+    document.getElementById('meetingModalOverlay').classList.remove('open');
+  }
+
+  function closeMeetingOnOverlay(e) {
+    if (e.target === document.getElementById('meetingModalOverlay')) closeMeetingModal();
+  }
+
+  function filterMeetingClients() {
+    const q = document.getElementById('meeting-search').value.toLowerCase();
+    const list = document.getElementById('meeting-client-list');
+    const filtered = clients.filter(c =>
+      c.name.toLowerCase().includes(q) || (c.phone || '').includes(q)
+    );
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted);font-size:14px;">לא נמצאו לקוחות</div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map(c => `
+      <div onclick="selectClient(${c.id})" style="padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;transition:background 0.15s;"
+        onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background=''">
+        <div>
+          <div style="font-weight:600;font-size:14px;">${c.name}</div>
+          ${c.phone ? `<div style="font-size:12px;color:var(--muted);">📞 ${c.phone}</div>` : ''}
+        </div>
+        <span style="font-size:12px;color:var(--accent);font-weight:600;">בחר ←</span>
+      </div>
+    `).join('');
+  }
+
+  function selectClient(id) {
+    selectedClientId = id;
+    const c = clients.find(x => x.id === id);
+    document.getElementById('meeting-selected-client').innerHTML = `
+      <div>
+        <div style="font-weight:700;font-size:15px;">👤 ${c.name}</div>
+        ${c.phone ? `<div style="font-size:12px;color:var(--muted);">📞 ${c.phone}</div>` : ''}
+      </div>
+      <span style="color:var(--green);font-size:12px;font-weight:600;">✓ נבחר</span>
+    `;
+    document.getElementById('mf-date').value = '';
+    document.getElementById('mf-amount').value = '';
+    document.getElementById('mf-status').value = 'unpaid';
+    document.getElementById('mf-notes').value = '';
+    document.getElementById('meetingStep1').style.display = 'none';
+    document.getElementById('meetingStep2').style.display = 'block';
+  }
+
+  function backToSearch() {
+    document.getElementById('meetingStep1').style.display = 'block';
+    document.getElementById('meetingStep2').style.display = 'none';
+  }
+
+  function saveMeeting() {
+    if (!selectedClientId) return;
+    const date = document.getElementById('mf-date').value;
+    if (!date) { alert('אנא בחר תאריך'); return; }
+    treatments.push({
+      id: 't' + Date.now() + Math.floor(Math.random()*10000),
+      clientId: selectedClientId,
+      date,
+      amount: parseFloat(document.getElementById('mf-amount').value) || 0,
+      status: document.getElementById('mf-status').value,
+      paidAmount: 0,
+      notes: document.getElementById('mf-notes').value.trim(),
+    });
+    save();
+    closeMeetingModal();
+    render();
+  }
+
+  loadFromSheets();
+</script>
+</body>
+</html>
