@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -596,8 +597,8 @@
     <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted);font-size:12px;">▾</span>
   </div>
   <button class="filter-btn active" id="filter-all" onclick="setFilter('all')">הכל</button>
-  <button class="filter-btn" id="filter-unpaid" onclick="setFilter('unpaid')">⚠️ לא שילמו</button>
-  <button class="filter-btn" id="filter-paid" onclick="setFilter('paid')">✅ שילמו</button>
+  <button class="filter-btn" id="filter-unpaid" onclick="setFilter('unpaid')">⚠️ לא שולמו</button>
+  <button class="filter-btn" id="filter-paid" onclick="setFilter('paid')">✅ שולמו</button>
 </div>
 
 <div class="table-wrap">
@@ -610,6 +611,7 @@
           <th>הערות</th>
           <th>סכום</th>
           <th>סטטוס תשלום</th>
+          <th>תאריך תשלום</th>
           <th></th>
         </tr>
       </thead>
@@ -655,11 +657,15 @@
       <div class="form-row">
         <label>סטטוס תשלום</label>
         <select id="mf-status">
-          <option value="unpaid">לא שילם</option>
-          <option value="paid">שילם</option>
+          <option value="unpaid">לא שולם</option>
+          <option value="paid">שולם</option>
         </select>
       </div>
 
+      <div class="form-row">
+        <label>תאריך תשלום</label>
+        <input type="date" id="mf-paydate">
+      </div>
 
       <div class="form-row">
         <label>הערות</label>
@@ -693,6 +699,10 @@
           <label>טלפון</label>
           <input type="tel" id="f-phone" placeholder="050-0000000">
         </div>
+        <div class="form-row">
+          <label>ת.ז.</label>
+          <input type="text" id="f-tz" placeholder="000000000" maxlength="9">
+        </div>
       </div>
     </div>
 
@@ -712,11 +722,15 @@
       <div class="form-row">
         <label>סטטוס תשלום</label>
         <select id="f-status">
-          <option value="unpaid">לא שילם</option>
-          <option value="paid">שילם</option>
+          <option value="unpaid">לא שולם</option>
+          <option value="paid">שולם</option>
         </select>
       </div>
 
+      <div class="form-row">
+        <label>תאריך תשלום</label>
+        <input type="date" id="f-paydate">
+      </div>
 
       <div class="form-row">
         <label>הערות</label>
@@ -862,13 +876,13 @@
 
 <script>
   // ---- DATA MODEL ----
-  // clients: [{id, name, phone}]
+  // clients: [{id, name, phone, tz}]
   // treatments: [{id, clientId, date, amount, status, paidAmount, notes}]
 
   // ================================================================
   //  הגדרות Google Sheets – הדביקי כאן את כתובת ה-Web App שלך
   // ================================================================
-  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwP1VSDN6S5PPhaxXYI1iEHgWQ7Qi8_yl46CnaC25N6P9LZwwy27BWGmLNIX7kTyNfK/exec';
+  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxV9TSslVcS7Uyi29YwdfQwrueAJu7Lsa9Ri_EsCU72FpiU9aEgp6VtKu-MwYL_CH-b/exec';
   // ================================================================
 
   let clients = [];
@@ -908,7 +922,11 @@
       const text = await res.text();
       const data = JSON.parse(text);
       if (data.error) throw new Error(data.error);
-      clients = data.clients || [];
+      clients = (data.clients || []).map(c => ({
+        ...c,
+        phone: c.phone ? (String(c.phone).startsWith('0') ? String(c.phone) : '0' + String(c.phone)) : '',
+        tz: c.tz ? String(c.tz) : '',
+      }));
       treatments = (data.treatments || []).map(t => {
         let date = String(t.date || '');
         if (date && !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -920,7 +938,13 @@
             date = y + '-' + mo + '-' + d;
           } else { date = ''; }
         }
-        return { ...t, id: String(t.id), date, status: t.status === 'partial' ? 'unpaid' : t.status };
+        let payDate = String(t.payDate || '');
+        if (payDate && !payDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const pp = new Date(payDate);
+          if (!isNaN(pp)) { payDate = pp.getFullYear() + '-' + String(pp.getMonth()+1).padStart(2,'0') + '-' + String(pp.getDate()).padStart(2,'0'); }
+          else payDate = '';
+        }
+        return { ...t, id: String(t.id), date, payDate, status: t.status === 'partial' ? 'unpaid' : t.status };
       });
       showSyncStatus('✅ נטען בהצלחה', 'var(--green)');
       render();
@@ -975,9 +999,9 @@
 
   function statusBadge(t) {
     if (t.status === 'paid') {
-      return `<span class="badge badge-paid badge-clickable" onclick="toggleStatus('${t.id}')" title="לחץ לשינוי">✅ שילם</span>`;
+      return `<span class="badge badge-paid badge-clickable" onclick="toggleStatus('${t.id}')" title="לחץ לשינוי">✅ שולם</span>`;
     }
-    return `<span class="badge badge-unpaid badge-clickable" onclick="toggleStatus('${t.id}')" title="לחץ לסימון כשולם">⚠️ לא שילם</span>`;
+    return `<span class="badge badge-unpaid badge-clickable" onclick="toggleStatus('${t.id}')" title="לחץ לסימון כשולם">⚠️ לא שולם</span>`;
   }
 
   function toggleStatus(tid) {
@@ -1046,7 +1070,7 @@
         <tr><td colspan="6">
           <div class="empty-state">
             <div class="icon">${currentFilter === 'unpaid' && monthTreatments.length > 0 ? '🎉' : '📭'}</div>
-            <p>${currentFilter === 'unpaid' && monthTreatments.length > 0 ? 'כל הלקוחות שילמו! 🎉' : 'אין טיפולים ב' + hebrewMonths[viewMonth]}</p>
+            <p>${currentFilter === 'unpaid' && monthTreatments.length > 0 ? 'כל הלקוחות שולמו! 🎉' : 'אין טיפולים ב' + hebrewMonths[viewMonth]}</p>
           </div>
         </td></tr>`;
     } else {
@@ -1056,12 +1080,14 @@
         <tr>
           <td>
             <div class="client-name">${c.name}</div>
-            ${c.phone ? `<div class="client-phone">📞 ${c.phone}</div>` : ''}
+            ${c.phone ? `<div class="client-phone">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : ''}
+            ${c.tz ? `<div class="client-phone">🪪 ${c.tz}</div>` : ''}
           </td>
           <td><div class="meeting-date">${formatDate(t.date)}</div></td>
           <td><div class="meeting-notes">${t.notes || '—'}</div></td>
           <td><div class="amount">${t.amount ? '₪' + t.amount.toLocaleString() : '—'}</div></td>
           <td>${statusBadge(t)}</td>
+          <td><div class="meeting-date" style="font-size:12px;">${t.payDate ? formatDate(t.payDate) : '—'}</div></td>
           <td>
             <div class="actions">
               <button class="action-btn" onclick="openTreatmentEdit('${t.id}')" title="עריכה">✏️</button>
@@ -1110,10 +1136,12 @@
       document.getElementById('modalTitle').textContent = 'עריכת לקוח';
       document.getElementById('f-name').value = c.name;
       document.getElementById('f-phone').value = c.phone || '';
+      document.getElementById('f-tz').value = c.tz || '';
     } else {
       document.getElementById('modalTitle').textContent = 'לקוח חדש';
       document.getElementById('f-name').value = '';
       document.getElementById('f-phone').value = '';
+      document.getElementById('f-tz').value = '';
     }
   }
 
@@ -1135,10 +1163,10 @@
 
     if (editingClientId !== null) {
       clients = clients.map(c => c.id === editingClientId
-        ? { ...c, name, phone: document.getElementById('f-phone').value.trim() }
+        ? { ...c, name, phone: document.getElementById('f-phone').value.trim(), tz: document.getElementById('f-tz').value.trim() }
         : c);
     } else {
-      clients.push({ id: Date.now(), name, phone: document.getElementById('f-phone').value.trim() });
+      clients.push({ id: Date.now(), name, phone: document.getElementById('f-phone').value.trim(), tz: document.getElementById('f-tz').value.trim() });
     }
 
     save();
@@ -1193,7 +1221,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div style="min-width:0;">
             <div style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
-            ${c.phone ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">📞 ${c.phone}</div>` : '<div style="font-size:12px;color:var(--muted);margin-top:2px;">אין טלפון</div>'}
+            ${c.phone ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : '<div style="font-size:12px;color:var(--muted);margin-top:2px;">אין טלפון</div>'}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${c.tz}</div>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
             ${unpaidCount > 0 ? `<span style="background:var(--red-light);color:var(--red);font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;">חוב: ${unpaidCount} טיפולים</span>` : ''}
@@ -1258,7 +1286,8 @@
     const totalCount = clientTreatments.length;
 
     document.getElementById('ph-title').textContent = '📋 היסטוריית טיפולים – ' + c.name;
-    document.getElementById('ph-subtitle').textContent = c.phone ? '📞 ' + c.phone : '';
+    const phoneDisplay = c.phone ? (String(c.phone).startsWith('0') ? c.phone : '0' + c.phone) : '';
+    document.getElementById('ph-subtitle').textContent = (phoneDisplay ? '📞 ' + phoneDisplay : '') + (c.tz ? '   🪪 ' + c.tz : '');
 
     let html = `
       <div class="ph-totals">
@@ -1289,10 +1318,11 @@
           html += `
             <div class="ph-row">
               <div style="font-weight:600;color:var(--text);">${formatDate(t.date)}</div>
+              ${t.payDate ? `<div style="font-size:11px;color:var(--muted);">שולם: ${formatDate(t.payDate)}</div>` : ''}
               <div style="color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.notes || '—'}</div>
               <div style="font-weight:700;">${t.amount ? '₪' + t.amount.toLocaleString() : '—'}</div>
               <div>${t.status === 'paid'
-                ? '<span style="background:var(--green-light);color:var(--green);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✅ שילם</span>'
+                ? '<span style="background:var(--green-light);color:var(--green);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✅ שולם</span>'
                 : '<span style="background:var(--red-light);color:var(--red);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">⚠️ חוב</span>'
               }</div>
             </div>`;
@@ -1324,6 +1354,7 @@
     document.getElementById('clientFields').style.display = 'none';
     document.getElementById('treatmentFields').style.display = 'block';
     document.getElementById('f-date').value = t.date || '';
+      document.getElementById('f-paydate').value = t.payDate || '';
     document.getElementById('f-amount').value = t.amount || '';
     document.getElementById('f-status').value = t.status || 'unpaid';
     document.getElementById('f-notes').value = t.notes || '';
@@ -1333,6 +1364,7 @@
     treatments = treatments.map(t => t.id === editingTreatmentId ? {
       ...t,
       date: document.getElementById('f-date').value,
+      payDate: document.getElementById('f-paydate').value || '',
       amount: parseFloat(document.getElementById('f-amount').value) || 0,
       status: document.getElementById('f-status').value,
       paidAmount: 0,
@@ -1400,7 +1432,7 @@
         onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background=''">
         <div>
           <div style="font-weight:600;font-size:14px;">${c.name}</div>
-          ${c.phone ? `<div style="font-size:12px;color:var(--muted);">📞 ${c.phone}</div>` : ''}
+          ${c.phone ? `<div style="font-size:12px;color:var(--muted);">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : ''}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${c.tz}</div>` : ''}
         </div>
         <span style="font-size:12px;color:var(--accent);font-weight:600;">בחר ←</span>
       </div>
@@ -1413,11 +1445,12 @@
     document.getElementById('meeting-selected-client').innerHTML = `
       <div>
         <div style="font-weight:700;font-size:15px;">👤 ${c.name}</div>
-        ${c.phone ? `<div style="font-size:12px;color:var(--muted);">📞 ${c.phone}</div>` : ''}
+        ${c.phone ? `<div style="font-size:12px;color:var(--muted);">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : ''}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${c.tz}</div>` : ''}
       </div>
       <span style="color:var(--green);font-size:12px;font-weight:600;">✓ נבחר</span>
     `;
     document.getElementById('mf-date').value = '';
+    document.getElementById('mf-paydate').value = '';
     document.getElementById('mf-amount').value = '';
     document.getElementById('mf-status').value = 'unpaid';
     document.getElementById('mf-notes').value = '';
@@ -1441,6 +1474,7 @@
       amount: parseFloat(document.getElementById('mf-amount').value) || 0,
       status: document.getElementById('mf-status').value,
       paidAmount: 0,
+      payDate: document.getElementById('mf-paydate').value || '',
       notes: document.getElementById('mf-notes').value.trim(),
     });
     save();
