@@ -928,6 +928,7 @@
         tz: c.tz ? String(c.tz) : '',
       }));
       treatments = (data.treatments || []).map(t => {
+        t = { ...t, clientId: Number(t.clientId) };
         let date = String(t.date || '');
         if (date && !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
           const parsed = new Date(date);
@@ -1052,7 +1053,7 @@
 
     // Filter by search + status + client
     let filtered = monthTreatments.filter(t => {
-      const c = clients.find(x => x.id === t.clientId);
+      const c = clients.find(x => String(x.id) === String(t.clientId));
       if (!c) return false;
       const matchSearch = c.name.toLowerCase().includes(search) || (c.phone || '').includes(search);
       const matchFilter = currentFilter === 'all' || t.status === currentFilter;
@@ -1075,7 +1076,7 @@
         </td></tr>`;
     } else {
       tbody.innerHTML = filtered.map(t => {
-        const c = clients.find(x => x.id === t.clientId) || { name: '?', phone: '' };
+        const c = clients.find(x => String(x.id) === String(t.clientId)) || { name: '?', phone: '' };
         return `
         <tr>
           <td>
@@ -1348,7 +1349,7 @@
   function openTreatmentEdit(tid) {
     editingTreatmentId = tid;
     const t = treatments.find(x => x.id === tid);
-    const c = clients.find(x => x.id === t.clientId) || { name: '' };
+    const c = clients.find(x => String(x.id) === String(t.clientId)) || { name: '' };
     document.getElementById('modalOverlay').classList.add('open');
     document.getElementById('modalTitle').textContent = 'עריכת טיפול – ' + c.name;
     document.getElementById('clientFields').style.display = 'none';
