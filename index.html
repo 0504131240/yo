@@ -478,44 +478,66 @@
     margin: 0 auto;
   }
 
+  /* כרטיסי טיפולים לסלולר */
+  .treatment-card {
+    display: none;
+  }
+
   @media (max-width: 768px) {
     .header {
-      padding: 14px 16px;
+      padding: 12px 14px;
       flex-direction: column;
       align-items: stretch;
-      gap: 12px;
+      gap: 10px;
     }
     .header-brand { justify-content: flex-start; }
     .header-actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      gap: 7px;
     }
     .header-actions .btn-add {
       justify-content: center;
-      padding: 11px 8px;
-      font-size: 13px;
-    }
-    .btn-add-wide {
-      grid-column: 1 / -1;
-    }
-    .month-nav-wrap { padding: 16px 16px 0; }
-    .income-row { padding: 10px 16px 0; }
-    .stats { grid-template-columns: 1fr 1fr; padding: 16px 16px 0; }
-    .controls { padding: 12px 16px; }
-    .table-wrap { padding: 0 12px 40px; }
-    .form-grid { grid-template-columns: 1fr; }
-
-    td { padding: 12px 10px; }
-    thead th { padding: 10px; font-size: 11px; }
-
-    th:nth-child(3), td:nth-child(3) { display: none; }
-
-    .badge-clickable {
-      padding: 10px 12px;
-      min-width: 90px;
+      padding: 10px 6px;
       font-size: 12px;
     }
+    .btn-add-wide { grid-column: 1 / -1; }
+    .month-nav-wrap { padding: 12px 12px 0; }
+    .income-row { padding: 8px 12px 0; }
+    .stats { grid-template-columns: 1fr 1fr; padding: 12px 12px 0; }
+    .controls { padding: 10px 12px; }
+    .table-wrap { padding: 0 10px 40px; }
+    .form-grid { grid-template-columns: 1fr; }
+
+    /* הסתרת טבלה במובייל */
+    .table-container { display: none; }
+
+    /* הצגת כרטיסים */
+    .treatment-card { display: block; }
+    #cards-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .t-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .t-card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      justify-content: flex-end;
+    }
+
+    .badge-clickable { padding: 8px 12px; font-size: 12px; }
   }
 </style>
 </head>
@@ -532,6 +554,12 @@
   <div class="header-actions">
     <span id="sync-status" style="font-size:12px;color:var(--muted);align-self:center;transition:opacity 0.5s;white-space:nowrap;"></span>
     <button class="btn-add" style="background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,0.15);padding:10px 16px;" onclick="loadFromSheets()" title="רענן נתונים">🔄</button>
+<button class="btn-add btn-add-wide" style="background:#e91e8c;" onclick="openWeeklyCalendar()">
+      <span>🗓️</span> לוח שבועי
+    </button>
+    <button class="btn-add btn-add-wide" style="background:#7c6ef7;" onclick="openPaymentModal()">
+      <span>💳</span> קבלת תשלום
+    </button>
     <button class="btn-add btn-add-wide" style="background:var(--green);" onclick="openMeetingModal()">
       <span>📅</span> טיפול חדש
     </button>
@@ -602,6 +630,7 @@
 </div>
 
 <div class="table-wrap">
+  <div class="treatment-card" id="cards-container"></div>
   <div class="table-container">
     <table>
       <thead>
@@ -704,6 +733,37 @@
           <input type="text" id="f-tz" placeholder="000000000" maxlength="9">
         </div>
       </div>
+      <div class="form-row" style="margin-top:4px;">
+        <label>סטטוס לקוח</label>
+        <select id="f-active" style="font-family:'Heebo',sans-serif;" onchange="toggleScheduleFields()">
+          <option value="active">✅ פעיל</option>
+          <option value="inactive">⏸️ לא פעיל</option>
+        </select>
+      </div>
+      <div id="f-schedule-fields" style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:4px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;">⏰ לוח שבועי קבוע</div>
+        <div class="form-grid">
+          <div class="form-row" style="margin-bottom:0;">
+            <label>יום בשבוע</label>
+            <select id="f-day" style="font-family:'Heebo',sans-serif;">
+              <option value="0">ראשון</option>
+              <option value="1">שני</option>
+              <option value="2">שלישי</option>
+              <option value="3">רביעי</option>
+              <option value="4">חמישי</option>
+              <option value="5">שישי</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin-bottom:0;">
+            <label>שעה</label>
+            <input type="time" id="f-time" value="16:00">
+          </div>
+          <div class="form-row" style="margin-bottom:0;">
+            <label>סכום (₪)</label>
+            <input type="number" id="f-weekly-amount" value="350" min="0">
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Treatment fields (shown when editing a treatment) -->
@@ -772,6 +832,100 @@
 @keyframes slideInPanel {
   from { opacity:0; transform:translateX(-40px); }
   to   { opacity:1; transform:translateX(0); }
+}
+
+
+
+/* Weekly Calendar */
+#calendarOverlay {
+  position: fixed; inset: 0;
+  background: rgba(26,24,20,0.55);
+  backdrop-filter: blur(4px);
+  z-index: 300; display: none;
+  align-items: flex-start; justify-content: center;
+  padding: 20px; overflow-y: auto;
+}
+#calendarOverlay.open { display: flex; }
+#calendarModal {
+  background: var(--surface);
+  border-radius: 20px; width: 100%; max-width: 780px;
+  box-shadow: var(--shadow-lg); animation: modalIn 0.3s ease;
+  margin: auto;
+}
+.cal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px; background: var(--border);
+  border-radius: 0 0 20px 20px; overflow: hidden;
+}
+.cal-day-header {
+  background: var(--bg);
+  padding: 10px 8px; text-align: center;
+  font-size: 12px; font-weight: 800; color: var(--muted);
+}
+.cal-day-header.today-col { color: var(--accent); }
+.cal-cell {
+  background: var(--surface); min-height: 80px; padding: 8px 6px;
+}
+.cal-slot {
+  border-radius: 8px; padding: 6px 8px; margin-bottom: 4px;
+  font-size: 12px; cursor: pointer; transition: opacity 0.15s;
+  border: 1px solid transparent;
+}
+.cal-slot:hover { opacity: 0.8; }
+.cal-slot.active-slot { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+.cal-slot.cancelled-slot { background: #fff3e0; color: #e65100; border-color: #ffcc80; text-decoration: line-through; }
+.cal-slot.past-slot { opacity: 0.5; cursor: default; }
+@media (max-width: 600px) {
+  .cal-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Payment Modal */
+#paymentOverlay {
+  position: fixed; inset: 0;
+  background: rgba(26,24,20,0.55);
+  backdrop-filter: blur(4px);
+  z-index: 300; display: none;
+  align-items: center; justify-content: center; padding: 20px;
+}
+#paymentOverlay.open { display: flex; }
+#paymentModal {
+  background: var(--surface);
+  border-radius: 20px; width: 100%; max-width: 540px;
+  max-height: 88vh; display: flex; flex-direction: column;
+  box-shadow: var(--shadow-lg); animation: modalIn 0.3s ease; overflow: hidden;
+}
+.pm-header { padding: 24px 28px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.pm-body { overflow-y: auto; padding: 20px 24px 24px; flex: 1; display: flex; flex-direction: column; gap: 18px; }
+.pm-treatment-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: 12px;
+  border: 2px solid var(--border); background: var(--bg);
+  cursor: pointer; transition: all 0.15s;
+}
+.pm-treatment-row.selected {
+  border-color: #7c6ef7;
+  background: #f0eeff;
+}
+.pm-treatment-row:hover { border-color: #b0a8f0; }
+.pm-checkbox {
+  width: 20px; height: 20px; border-radius: 6px;
+  border: 2px solid var(--border); background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.15s;
+}
+.pm-treatment-row.selected .pm-checkbox {
+  background: #7c6ef7; border-color: #7c6ef7; color: white; font-size: 12px;
+}
+.pm-total {
+  background: #f0eeff; border: 1px solid #7c6ef7;
+  border-radius: 12px; padding: 14px 20px;
+  display: flex; justify-content: space-between; align-items: center;
 }
 
 /* Patient History Modal */
@@ -860,6 +1014,93 @@
 
 </style>
 
+
+<!-- PAYMENT MODAL -->
+<div id="paymentOverlay" onclick="closePaymentOnOverlay(event)">
+  <div id="paymentModal">
+    <div class="pm-header">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="font-size:1.2rem;font-weight:800;">💳 קבלת תשלום</div>
+        <button onclick="closePaymentModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+      </div>
+      <div class="form-row" style="margin:0;">
+        <label style="font-size:13px;">בחר לקוח</label>
+        <select id="pm-client" onchange="loadUnpaidTreatments()" style="font-family:'Heebo',sans-serif;">
+          <option value="">— בחר לקוח —</option>
+        </select>
+      </div>
+    </div>
+    <div class="pm-body">
+      <div id="pm-treatments-wrap" style="display:none;">
+        <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px;">טיפולים שלא שולמו — סמן אילו כלולים בתשלום זה:</div>
+        <div id="pm-treatments-list"></div>
+      </div>
+      <div id="pm-no-unpaid" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:14px;">✅ אין טיפולים פתוחים ללקוח זה</div>
+      <div id="pm-summary-wrap" style="display:none;">
+        <div class="pm-total">
+          <div style="font-size:14px;font-weight:600;">סה"כ לתשלום</div>
+          <div style="font-size:1.4rem;font-weight:800;color:#7c6ef7;" id="pm-total-amount">₪0</div>
+        </div>
+        <div class="form-row" style="margin-top:14px;">
+          <label style="font-size:13px;">תאריך תשלום</label>
+          <input type="date" id="pm-paydate">
+        </div>
+        <div class="form-row">
+          <label style="font-size:13px;">הערה (אופציונלי)</label>
+          <input type="text" id="pm-note" placeholder="פרטי תשלום נוספים...">
+        </div>
+        <button onclick="confirmPayment()" style="width:100%;padding:16px;background:#7c6ef7;color:white;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;font-family:'Heebo',sans-serif;margin-top:4px;">
+          ✅ אשר תשלום
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<!-- WEEKLY CALENDAR MODAL -->
+<div id="calendarOverlay" onclick="closeCalendarOnOverlay(event)">
+  <div id="calendarModal">
+    <div class="cal-header">
+      <button onclick="changeCalWeek(-1)" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:18px;">‹</button>
+      <div style="font-size:1rem;font-weight:800;" id="cal-week-label"></div>
+      <button onclick="changeCalWeek(1)" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:18px;">›</button>
+      <button onclick="goCalToday()" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:13px;font-weight:700;">היום</button>
+      <button onclick="closeWeeklyCalendar()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);margin-right:auto;">✕</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+</div>
+
+<!-- CANCEL MODAL -->
+<div id="cancelOverlay" style="position:fixed;inset:0;background:rgba(26,24,20,0.55);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;" onclick="closeCancelModalOnOverlay(event)">
+  <div style="background:var(--surface);border-radius:20px;width:100%;max-width:400px;padding:28px;box-shadow:var(--shadow-lg);direction:rtl;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div style="font-size:1.1rem;font-weight:800;">🚫 ביטול טיפול</div>
+      <button onclick="closeCancelModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+    <div id="cancel-treatment-info" style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:14px;"></div>
+    <div class="form-row">
+      <label>תאריך ביטול</label>
+      <input type="date" id="cancel-date">
+    </div>
+    <div class="form-row">
+      <label>תשלום ביטול (₪)</label>
+      <input type="number" id="cancel-amount" placeholder="0" min="0">
+    </div>
+    <div class="form-row">
+      <label>הערה</label>
+      <input type="text" id="cancel-note" placeholder="סיבת הביטול...">
+    </div>
+    <button onclick="confirmCancel()" style="width:100%;padding:14px;background:#e65100;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;margin-top:4px;">
+      🚫 אשר ביטול
+    </button>
+  </div>
+</div>
+
 <!-- PATIENT HISTORY MODAL -->
 <div id="patientHistoryOverlay" onclick="closePatientHistoryOnOverlay(event)">
   <div id="patientHistoryModal">
@@ -868,7 +1109,11 @@
         <div id="ph-title" style="font-size:1.25rem;font-weight:800;"></div>
         <button onclick="closePatientHistory()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);line-height:1;">✕</button>
       </div>
-      <div id="ph-subtitle" style="font-size:12px;color:var(--muted);"></div>
+      <div id="ph-subtitle" style="font-size:12px;color:var(--muted);margin-bottom:12px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button id="ph-tab-treatments" onclick="switchPhTab('treatments')" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:#7c6ef7;color:white;">📋 טיפולים</button>
+        <button id="ph-tab-payments" onclick="switchPhTab('payments')" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:var(--border);color:var(--text);">💳 תשלומים</button>
+      </div>
     </div>
     <div class="ph-body" id="ph-body"></div>
   </div>
@@ -882,11 +1127,12 @@
   // ================================================================
   //  הגדרות Google Sheets – הדביקי כאן את כתובת ה-Web App שלך
   // ================================================================
-  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzBLVa1fw2LLfGsqg2bKNbXmYR1YkrZ4Ty5KEVGzyQyh2P8k4pP6NsVq1xtS6q0Y8uv/exec';
+  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxjeToTS4sr3A_y0hQV_Aq3WmqtyjJsbwQ4qJAVnEJiNUBy7Fe9Iyay8MUyq401FaOc/exec';
   // ================================================================
 
   let clients = [];
   let treatments = [];
+  let payments = []; // קבוצות תשלום
   let currentFilter = 'all';
   let selectedClientFilter = '';
   let editingClientId = null;
@@ -922,6 +1168,16 @@
       const text = await res.text();
       const data = JSON.parse(text);
       if (data.error) throw new Error(data.error);
+      payments = (data.payments || []).map(p => {
+        let date = String(p.date || '');
+        if (date && !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const parsed = new Date(date);
+          if (!isNaN(parsed)) {
+            date = parsed.getFullYear() + '-' + String(parsed.getMonth()+1).padStart(2,'0') + '-' + String(parsed.getDate()).padStart(2,'0');
+          } else date = '';
+        }
+        return { ...p, date };
+      });
       clients = (data.clients || []).map(c => ({
         ...c,
         phone: c.phone ? (String(c.phone).startsWith('0') ? String(c.phone) : '0' + String(c.phone)) : '',
@@ -960,10 +1216,24 @@
     isSyncing = true;
     showSyncStatus('💾 שומר...', 'var(--muted)');
     try {
-      const data = encodeURIComponent(JSON.stringify({ clients, treatments }));
-      const res = await fetch(SHEETS_URL + '?action=save&data=' + data);
-      const text = await res.text();
-      const result = JSON.parse(text);
+      const payload = JSON.stringify({ action: 'save', clients, treatments, payments });
+      // נסה POST קודם (יציב יותר לנתונים גדולים)
+      let res, text, result;
+      try {
+        res = await fetch(SHEETS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: payload,
+        });
+        text = await res.text();
+        result = JSON.parse(text);
+      } catch (postErr) {
+        // פולבק ל-GET אם POST נכשל
+        const data = encodeURIComponent(payload);
+        res = await fetch(SHEETS_URL + '?action=save&data=' + data);
+        text = await res.text();
+        result = JSON.parse(text);
+      }
       if (result.error) throw new Error(result.error);
       showSyncStatus('✅ נשמר', 'var(--green)');
     } catch (err) {
@@ -1018,6 +1288,62 @@
     }
   }
 
+
+  function toggleScheduleFields() {
+    const active = document.getElementById('f-active').value === 'active';
+    document.getElementById('f-schedule-fields').style.display = active ? 'block' : 'none';
+  }
+
+  function generateClientTreatments(clientId) {
+    const c = clients.find(x => x.id === clientId);
+    if (!c || c.active !== 'active') return;
+
+    const weeks = parseInt(prompt('כמה שבועות קדימה ליצור?', '8'));
+    if (!weeks || isNaN(weeks)) return;
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const dayOfWeek = c.scheduleDay !== undefined ? c.scheduleDay : 1;
+    const amount = c.weeklyAmount || 350;
+    const seriesId = 'series' + Date.now();
+
+    // מצא את הטיפול הראשון מהיום
+    let current = new Date(today);
+    const diff = (dayOfWeek - current.getDay() + 7) % 7;
+    current.setDate(current.getDate() + (diff === 0 ? 7 : diff));
+
+    const newTreatments = [];
+    for (let i = 0; i < weeks; i++) {
+      const dateStr = current.getFullYear() + '-' + String(current.getMonth()+1).padStart(2,'0') + '-' + String(current.getDate()).padStart(2,'0');
+      // בדוק שאין כבר טיפול בתאריך הזה ללקוח
+      const exists = treatments.find(t => String(t.clientId) === String(clientId) && t.date === dateStr && t.status !== 'cancelled');
+      if (!exists) {
+        newTreatments.push({
+          id: 't' + Date.now() + Math.floor(Math.random()*100000),
+          clientId: Number(clientId),
+          date: dateStr,
+          amount,
+          status: 'unpaid',
+          paidAmount: 0,
+          payDate: '',
+          notes: '',
+          seriesId,
+        });
+      }
+      current.setDate(current.getDate() + 7);
+    }
+
+    if (newTreatments.length === 0) {
+      alert('כל הטיפולים כבר קיימים בתקופה זו');
+      return;
+    }
+
+    treatments.push(...newTreatments);
+    save();
+    render();
+    alert('✅ נוצרו ' + newTreatments.length + ' טיפולים עתידיים');
+  }
+
   function toggleStatus(tid) {
     const t = treatments.find(x => x.id === tid);
     if (!t) return;
@@ -1066,19 +1392,32 @@
 
     const search = document.getElementById('searchInput').value.toLowerCase();
 
-    // All treatments in this month
+    // All treatments in this month (including cancelled)
     const monthTreatments = treatments.filter(t => {
       if (!t.date) return false;
       const [y, m] = t.date.split('-').map(Number);
       return y === viewYear && (m - 1) === viewMonth;
     });
 
+    // Also include cancelled treatments where cancelDate is this month
+    const cancelledThisMonth = treatments.filter(t => {
+      if (t.status !== 'cancelled' || !t.cancelDate) return false;
+      const [y, m] = t.cancelDate.split('-').map(Number);
+      return y === viewYear && (m - 1) === viewMonth;
+    }).filter(t => !monthTreatments.find(x => x.id === t.id));
+
+    const allMonthTreatments = [...monthTreatments, ...cancelledThisMonth];
+
     // Filter by search + status + client
-    let filtered = monthTreatments.filter(t => {
+    let filtered = allMonthTreatments.filter(t => {
       const c = clients.find(x => String(x.id) === String(t.clientId));
       if (!c) return false;
       const matchSearch = c.name.toLowerCase().includes(search) || (c.phone || '').includes(search);
-      const matchFilter = currentFilter === 'all' || t.status === currentFilter;
+      const matchFilter = currentFilter === 'all'
+        ? true
+        : currentFilter === 'unpaid'
+        ? t.status === 'unpaid'
+        : t.status === currentFilter;
       const matchClient = !selectedClientFilter || String(t.clientId) === String(selectedClientFilter);
       return matchSearch && matchFilter && matchClient;
     });
@@ -1114,6 +1453,7 @@
           <td>
             <div class="actions">
               <button class="action-btn" onclick="openTreatmentEdit('${t.id}')" title="עריכה">✏️</button>
+              ${t.status !== 'cancelled' && t.date && new Date(t.date) > new Date() ? `<button class="action-btn" onclick="openCancelModal('${t.id}')" title="ביטול טיפול" style="font-size:13px;">🚫</button>` : ''}
               <button class="action-btn delete" onclick="deleteTreatment('${t.id}')" title="מחיקה">🗑️</button>
             </div>
           </td>
@@ -1121,16 +1461,63 @@
       }).join('');
     }
 
-    // Stats
-    document.getElementById('stat-total').textContent = monthTreatments.length;
-    document.getElementById('stat-paid').textContent = monthTreatments.filter(t => t.status === 'paid').length;
-    document.getElementById('stat-unpaid').textContent = monthTreatments.filter(t => t.status === 'unpaid').length;
+    // Mobile cards
+    const cardsContainer = document.getElementById('cards-container');
+    if (cardsContainer) {
+      if (filtered.length === 0) {
+        cardsContainer.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--muted);">
+          <div style="font-size:3rem;margin-bottom:12px;">${currentFilter === 'unpaid' && monthTreatments.length > 0 ? '🎉' : '📭'}</div>
+          <div style="font-size:15px;font-weight:600;">${currentFilter === 'unpaid' && monthTreatments.length > 0 ? 'כל הלקוחות שולמו! 🎉' : 'אין טיפולים ב' + hebrewMonths[viewMonth]}</div>
+        </div>`;
+      } else {
+        cardsContainer.innerHTML = filtered.map(t => {
+          const c = clients.find(x => String(x.id) === String(t.clientId)) || { name: '?', phone: '' };
+          const isPaid = t.status === 'paid';
+          return `
+            <div class="t-card">
+              <div class="t-card-row1">
+                <div>
+                  <div class="t-card-name">${c.name}</div>
+                  <div class="t-card-date" style="margin-top:3px;">📅 ${formatDate(t.date)}</div>
+                </div>
+                <div>
+                  ${t.status === 'paid'
+                    ? `<span style="background:var(--green-light);color:var(--green);padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;">✅ שולם</span>`
+                    : t.status === 'cancelled'
+                    ? `<span style="background:#fff3e0;color:#e65100;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;">🚫 בוטל</span>`
+                    : `<span style="background:var(--red-light);color:var(--red);padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;">⚠️ לא שולם</span>`
+                  }
+                </div>
+              </div>
+              ${t.notes ? `<div style="font-size:12px;color:var(--muted);padding:4px 8px;background:var(--bg);border-radius:8px;">${t.notes}</div>` : ''}
+              <div class="t-card-actions">
+                <button class="action-btn" onclick="openTreatmentEdit('${t.id}')" title="עריכה">✏️</button>
+                ${t.status !== 'cancelled' && t.date && new Date(t.date) > new Date() ? `<button class="action-btn" onclick="openCancelModal('${t.id}')" title="ביטול טיפול" style="font-size:13px;">🚫</button>` : ''}
+                <button class="action-btn delete" onclick="deleteTreatment('${t.id}')" title="מחיקה">🗑️</button>
+              </div>
+            </div>`;
+        }).join('');
+      }
+    }
 
-    const monthRevenue = monthTreatments.reduce((sum, t) => sum + treatmentRevenue(t), 0);
+    // Stats
+    document.getElementById('stat-total').textContent = allMonthTreatments.filter(t => t.status !== 'cancelled').length;
+    document.getElementById('stat-paid').textContent = allMonthTreatments.filter(t => t.status === 'paid').length;
+    document.getElementById('stat-unpaid').textContent = allMonthTreatments.filter(t => t.status === 'unpaid').length;
+
+    // הכנסות לפי תאריך תשלום
+    const paidThisMonth = treatments.filter(t =>
+      t.status === 'paid' && t.payDate &&
+      t.payDate.startsWith(viewYear + '-' + String(viewMonth + 1).padStart(2, '0'))
+    );
+    const monthRevenue = paidThisMonth.reduce((sum, t) => sum + (t.amount || 0), 0);
     document.getElementById('stat-revenue-month').textContent = '₪' + monthRevenue.toLocaleString();
 
+    const paidThisYear = treatments.filter(t =>
+      t.status === 'paid' && t.payDate && t.payDate.startsWith(viewYear + '')
+    );
     const yearTreatments = treatments.filter(t => t.date && t.date.startsWith(viewYear + ''));
-    const yearRevenue = yearTreatments.reduce((sum, t) => sum + treatmentRevenue(t), 0);
+    const yearRevenue = paidThisYear.reduce((sum, t) => sum + (t.amount || 0), 0);
     document.getElementById('stat-revenue-year').textContent = '₪' + yearRevenue.toLocaleString();
     const statYearEl = document.getElementById('stat-year-treatments');
     if (statYearEl) statYearEl.textContent = yearTreatments.length + ' טיפולים השנה';
@@ -1160,11 +1547,21 @@
       document.getElementById('f-name').value = c.name;
       document.getElementById('f-phone').value = c.phone || '';
       document.getElementById('f-tz').value = c.tz || '';
+      document.getElementById('f-active').value = c.active || 'active';
+      document.getElementById('f-day').value = c.scheduleDay !== undefined ? c.scheduleDay : '1';
+      document.getElementById('f-time').value = c.scheduleTime || '16:00';
+      document.getElementById('f-weekly-amount').value = c.weeklyAmount || '350';
+      toggleScheduleFields();
     } else {
       document.getElementById('modalTitle').textContent = 'לקוח חדש';
       document.getElementById('f-name').value = '';
       document.getElementById('f-phone').value = '';
       document.getElementById('f-tz').value = '';
+      document.getElementById('f-active').value = 'active';
+      document.getElementById('f-day').value = '1';
+      document.getElementById('f-time').value = '16:00';
+      document.getElementById('f-weekly-amount').value = '350';
+      toggleScheduleFields();
     }
   }
 
@@ -1186,10 +1583,25 @@
 
     if (editingClientId !== null) {
       clients = clients.map(c => c.id === editingClientId
-        ? { ...c, name, phone: document.getElementById('f-phone').value.trim(), tz: document.getElementById('f-tz').value.trim() }
+        ? { ...c, name,
+          phone: document.getElementById('f-phone').value.trim(),
+          tz: document.getElementById('f-tz').value.trim(),
+          active: document.getElementById('f-active').value,
+          scheduleDay: parseInt(document.getElementById('f-day').value),
+          scheduleTime: document.getElementById('f-time').value,
+          weeklyAmount: parseFloat(document.getElementById('f-weekly-amount').value) || 350,
+        }
         : c);
     } else {
-      clients.push({ id: Date.now(), name, phone: document.getElementById('f-phone').value.trim(), tz: document.getElementById('f-tz').value.trim() });
+      clients.push({
+      id: Date.now(), name,
+      phone: document.getElementById('f-phone').value.trim(),
+      tz: document.getElementById('f-tz').value.trim(),
+      active: document.getElementById('f-active').value,
+      scheduleDay: parseInt(document.getElementById('f-day').value),
+      scheduleTime: document.getElementById('f-time').value,
+      weeklyAmount: parseFloat(document.getElementById('f-weekly-amount').value) || 350,
+    });
     }
 
     save();
@@ -1245,6 +1657,13 @@
           <div style="min-width:0;">
             <div style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
             ${c.phone ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : '<div style="font-size:12px;color:var(--muted);margin-top:2px;">אין טלפון</div>'}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${c.tz}</div>` : ''}
+              <div style="margin-top:4px;display:flex;align-items:center;gap:6px;">
+                ${c.active === 'inactive'
+                  ? '<span style="background:#f5f5f5;color:#9e9e9e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">⏸️ לא פעיל</span>'
+                  : '<span style="background:var(--green-light);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">✅ פעיל</span>'
+                    + (c.scheduleDay !== undefined ? '<span style="font-size:11px;color:var(--muted);margin-right:4px;">יום ' + ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][c.scheduleDay] + ' ' + (c.scheduleTime || '') + '</span>' : '')
+                }
+              </div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
             ${unpaidCount > 0 ? `<span style="background:var(--red-light);color:var(--red);font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;">חוב: ${unpaidCount} טיפולים</span>` : ''}
@@ -1255,9 +1674,9 @@
         <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:16px;">
           <div style="font-size:12px;color:var(--muted);">סה"כ טיפולים: <span style="font-weight:700;color:var(--text);">${clientTreatments.length}</span></div>
           <div style="font-size:12px;color:var(--muted);">שולם: <span style="font-weight:700;color:var(--green);">₪${totalPaid.toLocaleString()}</span></div>
-          <div style="margin-right:auto;display:flex;gap:10px;align-items:center;">
-            <button onclick="openPatientHistory(${c.id})" style="font-size:11px;color:var(--text);font-weight:700;background:var(--border);border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:4px 10px;border-radius:6px;transition:background 0.15s;" onmouseover="this.style.background='#d5cfc8'" onmouseout="this.style.background='var(--border)'">📋 כל השנים</button>
-            <button onclick="filterByClient(${c.id})" style="font-size:11px;color:var(--accent);font-weight:600;background:none;border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:0;">הצג חודש ←</button>
+          <div style="margin-right:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+<button onclick="openPatientHistory(${c.id})" style="font-size:11px;color:white;font-weight:700;background:var(--green);border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:4px 10px;border-radius:6px;">📋 היסטוריה</button>
+            <button onclick="openPaymentModalForClient(${c.id})" style="font-size:11px;color:white;font-weight:700;background:var(--green);border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:4px 10px;border-radius:6px;">+ תשלום חדש</button>
           </div>
         </div>
       </div>`;
@@ -1288,14 +1707,324 @@
     render();
   }
 
+
+
+  // ---- WEEKLY CALENDAR ----
+  let calWeekOffset = 0;
+  const calDayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי'];
+
+  function openWeeklyCalendar() {
+    calWeekOffset = 0;
+    renderCalendar();
+    document.getElementById('calendarOverlay').classList.add('open');
+  }
+
+  function closeWeeklyCalendar() {
+    document.getElementById('calendarOverlay').classList.remove('open');
+  }
+
+  function closeCalendarOnOverlay(e) {
+    if (e.target === document.getElementById('calendarOverlay')) closeWeeklyCalendar();
+  }
+
+  function changeCalWeek(dir) {
+    calWeekOffset += dir;
+    renderCalendar();
+  }
+
+  function goCalToday() {
+    calWeekOffset = 0;
+    renderCalendar();
+  }
+
+  function getWeekStart(offset) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const day = today.getDay(); // 0=sun
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - day + (offset * 7));
+    return sunday;
+  }
+
+  function renderCalendar() {
+    const weekStart = getWeekStart(calWeekOffset);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 5); // ראשון עד שישי
+
+    // כותרת שבוע
+    const fmt = d => d.getDate() + '/' + (d.getMonth()+1);
+    document.getElementById('cal-week-label').textContent =
+      fmt(weekStart) + ' – ' + fmt(weekEnd) + '/' + weekEnd.getFullYear();
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    // בנה את הימים של השבוע (ראשון-שישי)
+    const days = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      days.push(d);
+    }
+
+    // לקוחות פעילים לפי יום בשבוע
+    const activeClients = clients.filter(c => c.active !== 'inactive' && c.scheduleDay !== undefined);
+
+    // בנה grid
+    const grid = document.getElementById('cal-grid');
+
+    // כותרות ימים
+    let html = days.map((d, i) => {
+      const isToday = d.getTime() === today.getTime();
+      return `<div class="cal-day-header ${isToday ? 'today-col' : ''}">
+        <div>${calDayNames[i]}</div>
+        <div style="font-size:14px;font-weight:${isToday ? '900' : '600'};color:${isToday ? 'var(--accent)' : 'var(--text)'};">${d.getDate()}</div>
+      </div>`;
+    }).join('');
+
+    // תאים לכל יום
+    html += days.map((d, i) => {
+      const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      const dayOfWeek = d.getDay();
+      const isPast = d < today;
+
+      // לקוחות שיש להם טיפול ביום הזה
+      const dayClients = activeClients.filter(c => c.scheduleDay === dayOfWeek);
+
+      const slots = dayClients.map(c => {
+        // בדוק אם יש טיפול רשום בתאריך הזה ללקוח
+        const existing = treatments.find(t =>
+          String(t.clientId) === String(c.id) && t.date === dateStr
+        );
+        const isCancelled = existing && existing.status === 'cancelled';
+
+        return `<div class="cal-slot ${isCancelled ? 'cancelled-slot' : 'active-slot'} ${isPast && !isCancelled ? 'past-slot' : ''}"
+          onclick="${isCancelled ? '' : `openCalCancel('${c.id}','${dateStr}')`}"
+          title="${c.name}">
+          <div style="font-weight:700;font-size:11px;">${c.scheduleTime || ''}</div>
+          <div style="font-size:12px;">${c.name}</div>
+          ${isCancelled ? '<div style="font-size:10px;">בוטל</div>' : ''}
+        </div>`;
+      }).join('');
+
+      return `<div class="cal-cell">${slots || ''}</div>`;
+    }).join('');
+
+    grid.innerHTML = html;
+  }
+
+  function openCalCancel(clientId, dateStr) {
+    const c = clients.find(x => String(x.id) === String(clientId));
+    if (!c) return;
+
+    // בדוק אם יש כבר טיפול רשום
+    let t = treatments.find(x => String(x.clientId) === String(clientId) && x.date === dateStr);
+
+    if (!t) {
+      // צור טיפול זמני
+      t = {
+        id: 't' + Date.now() + Math.floor(Math.random()*100000),
+        clientId: Number(clientId),
+        date: dateStr,
+        amount: c.weeklyAmount || 350,
+        status: 'unpaid',
+        paidAmount: 0,
+        payDate: '',
+        notes: '',
+      };
+      treatments.push(t);
+    }
+
+    // פתח מודל ביטול
+    openCancelModal(t.id);
+
+    // אחרי סגירת מודל הביטול — רענן לוח
+    const origClose = window._origCloseCancelModal;
+    const origConfirm = confirmCancel;
+    window._calClientId = clientId;
+    window._calDate = dateStr;
+  }
+
+  // ---- PAYMENT MODAL ----
+  let selectedPaymentTreatments = new Set();
+
+  function openPaymentModalForClient(clientId) {
+    openPaymentModal();
+    // pre-select the client after modal opens
+    setTimeout(() => {
+      const sel = document.getElementById('pm-client');
+      sel.value = String(clientId);
+      loadUnpaidTreatments();
+    }, 50);
+  }
+
+  function openPaymentModal() {
+    selectedPaymentTreatments = new Set();
+    // populate client select
+    const sel = document.getElementById('pm-client');
+    sel.innerHTML = '<option value="">— בחר לקוח —</option>';
+    clients.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+    // set today as default paydate
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth()+1).padStart(2,'0');
+    const d = String(today.getDate()).padStart(2,'0');
+    document.getElementById('pm-paydate').value = y+'-'+m+'-'+d;
+    document.getElementById('pm-note').value = '';
+    document.getElementById('pm-treatments-wrap').style.display = 'none';
+    document.getElementById('pm-no-unpaid').style.display = 'none';
+    document.getElementById('pm-summary-wrap').style.display = 'none';
+    document.getElementById('paymentOverlay').classList.add('open');
+  }
+
+  function closePaymentModal() {
+    document.getElementById('paymentOverlay').classList.remove('open');
+  }
+
+  function closePaymentOnOverlay(e) {
+    if (e.target === document.getElementById('paymentOverlay')) closePaymentModal();
+  }
+
+  function loadUnpaidTreatments() {
+    const clientId = document.getElementById('pm-client').value;
+    selectedPaymentTreatments = new Set();
+    if (!clientId) {
+      document.getElementById('pm-treatments-wrap').style.display = 'none';
+      document.getElementById('pm-no-unpaid').style.display = 'none';
+      document.getElementById('pm-summary-wrap').style.display = 'none';
+      return;
+    }
+    const unpaid = treatments.filter(t => String(t.clientId) === String(clientId) && t.status === 'unpaid');
+    const list = document.getElementById('pm-treatments-list');
+
+    if (unpaid.length === 0) {
+      document.getElementById('pm-treatments-wrap').style.display = 'none';
+      document.getElementById('pm-no-unpaid').style.display = 'block';
+      document.getElementById('pm-summary-wrap').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('pm-no-unpaid').style.display = 'none';
+    document.getElementById('pm-treatments-wrap').style.display = 'block';
+    document.getElementById('pm-summary-wrap').style.display = 'block';
+
+    list.innerHTML = unpaid.map(t => `
+      <div class="pm-treatment-row" id="pmrow-${t.id}" onclick="togglePaymentTreatment('${t.id}', ${t.amount || 0})">
+        <div class="pm-checkbox" id="pmcheck-${t.id}"></div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:14px;">${formatDate(t.date)}</div>
+          ${t.notes ? `<div style="font-size:12px;color:var(--muted);">${t.notes}</div>` : ''}
+        </div>
+        <div style="font-weight:800;font-size:15px;">₪${(t.amount||0).toLocaleString()}</div>
+      </div>
+    `).join('');
+
+    updatePaymentTotal();
+  }
+
+  function togglePaymentTreatment(tid, amount) {
+    const row = document.getElementById('pmrow-'+tid);
+    const check = document.getElementById('pmcheck-'+tid);
+    if (selectedPaymentTreatments.has(tid)) {
+      selectedPaymentTreatments.delete(tid);
+      row.classList.remove('selected');
+      check.textContent = '';
+    } else {
+      selectedPaymentTreatments.add(tid);
+      row.classList.add('selected');
+      check.textContent = '✓';
+    }
+    updatePaymentTotal();
+  }
+
+  function updatePaymentTotal() {
+    let total = 0;
+    selectedPaymentTreatments.forEach(tid => {
+      const t = treatments.find(x => x.id === tid);
+      if (t) total += t.amount || 0;
+    });
+    document.getElementById('pm-total-amount').textContent = '₪' + total.toLocaleString();
+  }
+
+  function confirmPayment() {
+    if (selectedPaymentTreatments.size === 0) {
+      alert('יש לסמן לפחות טיפול אחד');
+      return;
+    }
+    const payDate = document.getElementById('pm-paydate').value;
+    const note = document.getElementById('pm-note').value.trim();
+    const clientId = document.getElementById('pm-client').value;
+    const treatmentIds = Array.from(selectedPaymentTreatments);
+
+    let total = 0;
+    treatmentIds.forEach(tid => {
+      const t = treatments.find(x => x.id === tid);
+      if (t) {
+        t.status = 'paid';
+        t.payDate = payDate;
+        total += t.amount || 0;
+      }
+    });
+
+    // שמירת קבוצת תשלום
+    const payment = {
+      id: 'pay' + Date.now(),
+      clientId: Number(clientId),
+      date: payDate,
+      total,
+      note: note || '',
+      treatmentIds,
+    };
+    payments.push(payment);
+
+    save();
+    render();
+    closePaymentModal();
+  }
+
   // ---- PATIENT HISTORY MODAL ----
-  function openPatientHistory(clientId) {
+  let currentPhClientId = null;
+  let currentPhTab = 'treatments';
+
+  function openPatientHistory(clientId, tab) {
+    currentPhClientId = clientId;
+    currentPhTab = tab || 'treatments';
     const c = clients.find(x => x.id === clientId);
     if (!c) return;
-    const clientTreatments = treatments.filter(t => t.clientId === clientId && t.date);
+
+    document.getElementById('ph-title').textContent = c.name;
+    const phoneDisplay = c.phone ? (String(c.phone).startsWith('0') ? c.phone : '0' + c.phone) : '';
+    document.getElementById('ph-subtitle').textContent = (phoneDisplay ? '📞 ' + phoneDisplay : '') + (c.tz ? '   🪪 ' + c.tz : '');
+
+    switchPhTab(currentPhTab);
+    document.getElementById('patientHistoryOverlay').classList.add('open');
+  }
+
+  function switchPhTab(tab) {
+    currentPhTab = tab;
+    const btnT = document.getElementById('ph-tab-treatments');
+    const btnP = document.getElementById('ph-tab-payments');
+    if (tab === 'treatments') {
+      btnT.style.background = '#7c6ef7'; btnT.style.color = 'white';
+      btnP.style.background = 'var(--border)'; btnP.style.color = 'var(--text)';
+      renderPhTreatments();
+    } else {
+      btnP.style.background = '#7c6ef7'; btnP.style.color = 'white';
+      btnT.style.background = 'var(--border)'; btnT.style.color = 'var(--text)';
+      renderPhPayments();
+    }
+  }
+
+  function renderPhTreatments() {
+    const clientId = currentPhClientId;
+    const clientTreatments = treatments.filter(t => String(t.clientId) === String(clientId) && t.date);
     clientTreatments.sort((a, b) => b.date.localeCompare(a.date));
 
-    // Group by year
     const byYear = {};
     for (const t of clientTreatments) {
       const y = t.date.split('-')[0];
@@ -1303,18 +2032,12 @@
       byYear[y].push(t);
     }
     const years = Object.keys(byYear).sort((a, b) => b - a);
-
     const totalPaid = clientTreatments.filter(t => t.status === 'paid').reduce((s, t) => s + (t.amount || 0), 0);
     const totalUnpaid = clientTreatments.filter(t => t.status === 'unpaid').reduce((s, t) => s + (t.amount || 0), 0);
-    const totalCount = clientTreatments.length;
-
-    document.getElementById('ph-title').textContent = '📋 היסטוריית טיפולים – ' + c.name;
-    const phoneDisplay = c.phone ? (String(c.phone).startsWith('0') ? c.phone : '0' + c.phone) : '';
-    document.getElementById('ph-subtitle').textContent = (phoneDisplay ? '📞 ' + phoneDisplay : '') + (c.tz ? '   🪪 ' + c.tz : '');
 
     let html = `
       <div class="ph-totals">
-        <div class="ph-total-item"><strong>${totalCount}</strong>סה"כ טיפולים</div>
+        <div class="ph-total-item"><strong>${clientTreatments.length}</strong>סה"כ טיפולים</div>
         <div class="ph-total-item"><strong style="color:var(--green);">₪${totalPaid.toLocaleString()}</strong>שולם</div>
         ${totalUnpaid > 0 ? `<div class="ph-total-item"><strong style="color:var(--red);">₪${totalUnpaid.toLocaleString()}</strong>חוב פתוח</div>` : ''}
         <div class="ph-total-item"><strong>${years.length}</strong>${years.length === 1 ? 'שנה' : 'שנים'} פעיל</div>
@@ -1339,23 +2062,216 @@
             </div>`;
         for (const t of yts) {
           html += `
-            <div class="ph-row">
+            <div class="ph-row" style="grid-template-columns:1fr auto;">
               <div style="font-weight:600;color:var(--text);">${formatDate(t.date)}</div>
-              ${t.payDate ? `<div style="font-size:11px;color:var(--muted);">שולם: ${formatDate(t.payDate)}</div>` : ''}
-              <div style="color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.notes || '—'}</div>
-              <div style="font-weight:700;">${t.amount ? '₪' + t.amount.toLocaleString() : '—'}</div>
               <div>${t.status === 'paid'
                 ? '<span style="background:var(--green-light);color:var(--green);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✅ שולם</span>'
-                : '<span style="background:var(--red-light);color:var(--red);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">⚠️ חוב</span>'
+                : '<span style="background:var(--red-light);color:var(--red);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">⚠️ לא שולם</span>'
               }</div>
             </div>`;
         }
         html += `</div>`;
       }
     }
-
     document.getElementById('ph-body').innerHTML = html;
-    document.getElementById('patientHistoryOverlay').classList.add('open');
+  }
+
+  function renderPhPayments() {
+    const clientId = currentPhClientId;
+    const clientPayments = payments.filter(p => String(p.clientId) === String(clientId));
+    clientPayments.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    let html = '';
+    if (clientPayments.length === 0) {
+      html = `<div style="text-align:center;padding:40px;color:var(--muted);">אין תשלומים רשומים</div>`;
+    } else {
+      const grandTotal = clientPayments.reduce((s, p) => s + (p.total || 0), 0);
+      html += `
+        <div class="ph-totals" style="margin-bottom:16px;">
+          <div class="ph-total-item"><strong>${clientPayments.length}</strong>תשלומים</div>
+          <div class="ph-total-item"><strong style="color:var(--green);">₪${grandTotal.toLocaleString()}</strong>סה"כ שולם</div>
+        </div>`;
+
+      clientPayments.forEach((p, idx) => {
+        const tList = (p.treatmentIds || []).map(tid => {
+          const t = treatments.find(x => x.id === tid);
+          return t ? `<div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--bg);border-radius:8px;font-size:13px;">
+            <span style="color:var(--muted);">${formatDate(t.date)}</span>
+            <span style="font-weight:600;">₪${(t.amount||0).toLocaleString()}</span>
+          </div>` : '';
+        }).join('');
+
+        html += `
+          <div style="border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px;">
+            <div style="background:#f0eeff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-weight:800;font-size:15px;">💳 ₪${(p.total||0).toLocaleString()}</div>
+                <div style="font-size:12px;color:var(--muted);">${p.date ? formatDate(p.date) : '—'}${p.note ? ' · ' + p.note : ''}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="font-size:12px;color:#7c6ef7;font-weight:700;">${(p.treatmentIds||[]).length} טיפולים</div>
+                <button onclick="showReceiptText('${p.id}')" title="הפק טקסט קבלה" style="background:none;border:1px solid #7c6ef7;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:14px;">🧾</button>
+                <button onclick="editPayment('${p.id}')" title="עריכת תשלום" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:14px;">✏️</button>
+              </div>
+            </div>
+            <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
+              ${tList || '<div style="color:var(--muted);font-size:13px;text-align:center;">אין פרטים</div>'}
+            </div>
+          </div>`;
+      });
+    }
+    document.getElementById('ph-body').innerHTML = html;
+  }
+
+  function editPayment(paymentId) {
+    const p = payments.find(x => x.id === paymentId);
+    if (!p) return;
+    const clientTreatments = treatments.filter(t => String(t.clientId) === String(p.clientId));
+    const unpaidOrInPayment = clientTreatments.filter(t => t.status === 'unpaid' || (p.treatmentIds || []).includes(t.id));
+    unpaidOrInPayment.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    const overlay = document.createElement('div');
+    overlay.id = 'edit-payment-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(26,24,20,0.6);backdrop-filter:blur(4px);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+    const tRows = unpaidOrInPayment.map(t => {
+      const checked = (p.treatmentIds || []).includes(t.id);
+      return `<div class="pm-treatment-row ${checked ? 'selected' : ''}" id="epmrow-${t.id}" onclick="toggleEditPaymentTreatment('${t.id}','${paymentId}')">
+        <div class="pm-checkbox" id="epmcheck-${t.id}">${checked ? '✓' : ''}</div>
+        <div style="flex:1;font-size:14px;font-weight:${checked ? '700' : '400'};">${formatDate(t.date)}</div>
+        <div style="font-weight:700;">₪${(t.amount||0).toLocaleString()}</div>
+      </div>`;
+    }).join('');
+
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border-radius:20px;width:100%;max-width:480px;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);direction:rtl;overflow:hidden;">
+        <div style="padding:22px 24px 16px;border-bottom:1px solid var(--border);flex-shrink:0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="font-size:1.1rem;font-weight:800;">✏️ עריכת תשלום</div>
+            <button onclick="document.getElementById('edit-payment-overlay').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+          </div>
+          <div class="form-row" style="margin:0 0 10px;">
+            <label style="font-size:13px;">תאריך תשלום</label>
+            <input type="date" id="epm-date" value="${p.date || ''}">
+          </div>
+          <div class="form-row" style="margin:0;">
+            <label style="font-size:13px;">הערה</label>
+            <input type="text" id="epm-note" value="${p.note || ''}" placeholder="פרטי תשלום נוספים...">
+          </div>
+        </div>
+        <div style="overflow-y:auto;padding:16px 20px;flex:1;">
+          <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px;">סמן את הטיפולים הכלולים בתשלום:</div>
+          <div id="epm-list">${tRows}</div>
+        </div>
+        <div style="padding:16px 20px;border-top:1px solid var(--border);flex-shrink:0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#f0eeff;border-radius:10px;padding:10px 16px;margin-bottom:12px;">
+            <span style="font-size:13px;font-weight:600;">סה"כ</span>
+            <span style="font-size:1.2rem;font-weight:800;color:#7c6ef7;" id="epm-total">₪${(p.total||0).toLocaleString()}</span>
+          </div>
+          <button onclick="saveEditedPayment('${paymentId}')" style="width:100%;padding:14px;background:#7c6ef7;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">
+            ✅ שמור שינויים
+          </button>
+        </div>
+      </div>`;
+
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
+  function toggleEditPaymentTreatment(tid, paymentId) {
+    const p = payments.find(x => x.id === paymentId);
+    if (!p) return;
+    const row = document.getElementById('epmrow-' + tid);
+    const check = document.getElementById('epmcheck-' + tid);
+    const idx = p.treatmentIds.indexOf(tid);
+    if (idx > -1) {
+      p.treatmentIds.splice(idx, 1);
+      row.classList.remove('selected');
+      check.textContent = '';
+    } else {
+      p.treatmentIds.push(tid);
+      row.classList.add('selected');
+      check.textContent = '✓';
+    }
+    // update total
+    const total = p.treatmentIds.reduce((s, id) => {
+      const t = treatments.find(x => x.id === id);
+      return s + (t ? t.amount || 0 : 0);
+    }, 0);
+    document.getElementById('epm-total').textContent = '₪' + total.toLocaleString();
+  }
+
+  function saveEditedPayment(paymentId) {
+    const p = payments.find(x => x.id === paymentId);
+    if (!p) return;
+    p.date = document.getElementById('epm-date').value;
+    p.note = document.getElementById('epm-note').value.trim();
+    p.total = p.treatmentIds.reduce((s, tid) => {
+      const t = treatments.find(x => x.id === tid);
+      return s + (t ? t.amount || 0 : 0);
+    }, 0);
+
+    // עדכון סטטוס טיפולים — שולם אם בתשלום, לא שולם אם הוסר
+    treatments.forEach(t => {
+      if (String(t.clientId) === String(p.clientId)) {
+        if (p.treatmentIds.includes(t.id)) {
+          // טיפול כלול בתשלום זה
+          t.status = 'paid';
+          t.payDate = p.date;
+        } else {
+          // בדוק אם הטיפול כלול בתשלום אחר
+          const inOtherPayment = payments.some(op => op.id !== paymentId && (op.treatmentIds || []).includes(t.id));
+          if (!inOtherPayment && t.payDate === p.date) {
+            // הוסר מהתשלום הזה ואין תשלום אחר — החזר ללא שולם
+            t.status = 'unpaid';
+            t.payDate = '';
+          }
+        }
+      }
+    });
+
+    save();
+    render();
+    document.getElementById('edit-payment-overlay').remove();
+    renderPhPayments();
+  }
+
+  function showReceiptText(paymentId) {
+    const p = payments.find(x => x.id === paymentId);
+    if (!p) return;
+    const c = clients.find(x => String(x.id) === String(p.clientId)) || { name: '' };
+    const dates = (p.treatmentIds || []).map(tid => {
+      const t = treatments.find(x => x.id === tid);
+      return t ? formatDate(t.date) : null;
+    }).filter(Boolean);
+
+    const text = dates.length === 1
+      ? `עבור טיפול קלינאית תקשורת בתאריך ${dates[0]}`
+      : `עבור ${dates.length} טיפולים קלינאית תקשורת בתאריכים:\n${dates.join('\n')}`;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'receipt-text-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(26,24,20,0.6);backdrop-filter:blur(4px);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border-radius:20px;width:100%;max-width:420px;padding:28px;box-shadow:var(--shadow-lg);direction:rtl;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div style="font-size:1.1rem;font-weight:800;">🧾 טקסט לקבלה</div>
+          <button onclick="document.getElementById('receipt-text-overlay').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;font-size:14px;line-height:1.8;white-space:pre-line;margin-bottom:16px;">${text}</div>
+        <button onclick="copyReceiptText(\`${text.replace(/`/g,'\`')}\`)" style="width:100%;padding:12px;background:#7c6ef7;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;" id="copy-receipt-btn">
+          📋 העתק טקסט
+        </button>
+      </div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
+  function copyReceiptText(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copy-receipt-btn');
+      if (btn) { btn.textContent = '✅ הועתק!'; setTimeout(() => { btn.textContent = '📋 העתק טקסט'; }, 2000); }
+    });
   }
 
   function closePatientHistory() {
@@ -1383,7 +2299,30 @@
     document.getElementById('f-notes').value = t.notes || '';
   }
 
+  function createPaymentIfPaid(treatment, oldStatus) {
+    if (treatment.status !== 'paid') return;
+    // בדוק אם כבר קיים תשלום שכולל טיפול זה
+    const alreadyInPayment = payments.some(p => (p.treatmentIds || []).includes(treatment.id));
+    if (alreadyInPayment) return;
+    // צור תשלום בודד
+    let payDate = treatment.payDate || treatment.date || '';
+    if (!payDate) {
+      const today = new Date();
+      payDate = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    }
+    payments.push({
+      id: 'pay' + Date.now() + Math.floor(Math.random()*1000),
+      clientId: treatment.clientId,
+      date: payDate,
+      total: treatment.amount || 0,
+      note: '',
+      treatmentIds: [treatment.id],
+    });
+  }
+
   function saveTreatmentEdit() {
+    const oldT = treatments.find(t => t.id === editingTreatmentId);
+    const oldStatus = oldT ? oldT.status : '';
     treatments = treatments.map(t => t.id === editingTreatmentId ? {
       ...t,
       date: document.getElementById('f-date').value,
@@ -1393,14 +2332,203 @@
       paidAmount: 0,
       notes: document.getElementById('f-notes').value.trim(),
     } : t);
+    const updatedT = treatments.find(t => t.id === editingTreatmentId);
+    if (updatedT) createPaymentIfPaid(updatedT, oldStatus);
     save();
     closeModal();
     render();
   }
 
+
+
+  // ---- SERIES MODAL ----
+  const hebrewDays = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
+  function openSeriesModal() {
+    const sel = document.getElementById('series-client');
+    sel.innerHTML = '<option value="">— בחר לקוח —</option>';
+    clients.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+    // set start date to today
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth()+1).padStart(2,'0');
+    const d = String(today.getDate()).padStart(2,'0');
+    document.getElementById('series-start').value = y+'-'+m+'-'+d;
+    // set day of week to today's day
+    document.getElementById('series-day').value = today.getDay();
+    document.getElementById('series-weeks').value = '10';
+    document.getElementById('series-amount').value = '350';
+    document.getElementById('series-preview').style.display = 'none';
+    document.getElementById('seriesOverlay').style.display = 'flex';
+  }
+
+  function closeSeriesModal() {
+    document.getElementById('seriesOverlay').style.display = 'none';
+  }
+
+  function closeSeriesOnOverlay(e) {
+    if (e.target === document.getElementById('seriesOverlay')) closeSeriesModal();
+  }
+
+  function buildSeriesDates() {
+    const startVal = document.getElementById('series-start').value;
+    const dayOfWeek = parseInt(document.getElementById('series-day').value);
+    const weeks = parseInt(document.getElementById('series-weeks').value) || 10;
+
+    if (!startVal) return [];
+
+    const start = new Date(startVal);
+    const dates = [];
+
+    // מצא את היום הראשון בסדרה שמתאים ליום בשבוע שנבחר
+    let current = new Date(start);
+    // כוון ליום הנכון בשבוע מתאריך ההתחלה
+    const diff = (dayOfWeek - current.getDay() + 7) % 7;
+    current.setDate(current.getDate() + diff);
+
+    for (let i = 0; i < weeks; i++) {
+      const d = new Date(current);
+      dates.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+      current.setDate(current.getDate() + 7);
+    }
+    return dates;
+  }
+
+  function previewSeries() {
+    const dates = buildSeriesDates();
+    if (dates.length === 0) { alert('יש לבחור תאריך התחלה'); return; }
+    const amount = parseFloat(document.getElementById('series-amount').value) || 350;
+
+    const listEl = document.getElementById('series-preview-list');
+    listEl.innerHTML = dates.map((d, i) => `
+      <div style="display:flex;justify-content:space-between;padding:5px 8px;border-radius:8px;background:var(--surface);margin-bottom:4px;font-size:13px;">
+        <span style="color:var(--muted);">${i+1}.</span>
+        <span style="font-weight:600;">${formatDate(d)}</span>
+        <span style="font-size:11px;color:var(--muted);">${hebrewDays[new Date(d).getDay()]}</span>
+        <span style="color:var(--accent);">₪${amount.toLocaleString()}</span>
+      </div>`).join('');
+
+    document.getElementById('series-preview').style.display = 'block';
+  }
+
+  function confirmSeries() {
+    const clientId = document.getElementById('series-client').value;
+    if (!clientId) { alert('יש לבחור לקוח'); return; }
+    const dates = buildSeriesDates();
+    if (dates.length === 0) { alert('יש לבחור תאריך התחלה'); return; }
+    const amount = parseFloat(document.getElementById('series-amount').value) || 350;
+    const seriesId = 'series' + Date.now();
+
+    const newTreatments = dates.map(date => ({
+      id: 't' + Date.now() + Math.floor(Math.random()*100000),
+      clientId: Number(clientId),
+      date,
+      amount,
+      status: 'unpaid',
+      paidAmount: 0,
+      payDate: '',
+      notes: '',
+      seriesId, // שייכות לסדרה
+      isFuture: new Date(date) > new Date(), // סימון עתידי
+    }));
+
+    treatments.push(...newTreatments);
+    save();
+    render();
+    closeSeriesModal();
+
+    const futureCnt = newTreatments.filter(t => t.isFuture).length;
+    const pastCnt = newTreatments.length - futureCnt;
+    alert(`✅ נוצרו ${newTreatments.length} טיפולים\n${pastCnt} שבוצעו · ${futureCnt} עתידיים`);
+  }
+
+  let cancellingTreatmentId = null;
+
+  function openCancelModal(tid) {
+    const t = treatments.find(x => x.id === tid);
+    if (!t) return;
+    const c = clients.find(x => String(x.id) === String(t.clientId)) || { name: '?' };
+    cancellingTreatmentId = tid;
+
+    document.getElementById('cancel-treatment-info').innerHTML =
+      `<div style="font-weight:700;">${c.name}</div><div style="color:var(--muted);font-size:13px;">📅 ${formatDate(t.date)}</div>`;
+
+    // today as default
+    const today = new Date();
+    document.getElementById('cancel-date').value = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    document.getElementById('cancel-amount').value = '0';
+    document.getElementById('cancel-note').value = '';
+
+    document.getElementById('cancelOverlay').style.display = 'flex';
+  }
+
+  function closeCancelModal() {
+    document.getElementById('cancelOverlay').style.display = 'none';
+    cancellingTreatmentId = null;
+  }
+
+  function closeCancelModalOnOverlay(e) {
+    if (e.target === document.getElementById('cancelOverlay')) closeCancelModal();
+  }
+
+  function confirmCancel() {
+    const t = treatments.find(x => x.id === cancellingTreatmentId);
+    if (!t) return;
+
+    const cancelDate = document.getElementById('cancel-date').value;
+    const cancelAmount = parseFloat(document.getElementById('cancel-amount').value) || 0;
+    const cancelNote = document.getElementById('cancel-note').value.trim();
+
+    t.status = 'cancelled';
+    t.cancelDate = cancelDate;
+    t.cancelAmount = cancelAmount;
+    t.cancelNote = cancelNote;
+
+    // אם יש תשלום ביטול — רשום כתשלום
+    if (cancelAmount > 0) {
+      const alreadyIn = payments.some(p => (p.treatmentIds || []).includes(t.id));
+      if (!alreadyIn) {
+        payments.push({
+          id: 'pay' + Date.now(),
+          clientId: t.clientId,
+          date: cancelDate,
+          total: cancelAmount,
+          note: 'דמי ביטול' + (cancelNote ? ' – ' + cancelNote : ''),
+          treatmentIds: [t.id],
+        });
+      }
+    }
+
+    save();
+    render();
+    closeCancelModal();
+    // רענן לוח שנה אם פתוח
+    if (document.getElementById('calendarOverlay').classList.contains('open')) {
+      renderCalendar();
+    }
+  }
+
   function deleteTreatment(tid) {
     if (!confirm('למחוק טיפול זה?')) return;
     treatments = treatments.filter(t => t.id != tid);
+
+    // עדכון תשלומים שכללו את הטיפול הזה
+    payments.forEach(p => {
+      if ((p.treatmentIds || []).includes(tid)) {
+        p.treatmentIds = p.treatmentIds.filter(id => id !== tid);
+        // חישוב מחדש של הסכום
+        p.total = p.treatmentIds.reduce((s, id) => {
+          const t = treatments.find(x => x.id === id);
+          return s + (t ? t.amount || 0 : 0);
+        }, 0);
+      }
+    });
+
     save();
     render();
   }
@@ -1490,16 +2618,18 @@
     if (!selectedClientId) return;
     const date = document.getElementById('mf-date').value;
     if (!date) { alert('אנא בחר תאריך'); return; }
-    treatments.push({
+    const newT = {
       id: 't' + Date.now() + Math.floor(Math.random()*10000),
-      clientId: selectedClientId,
+      clientId: Number(selectedClientId),
       date,
       amount: parseFloat(document.getElementById('mf-amount').value) || 0,
       status: document.getElementById('mf-status').value,
       paidAmount: 0,
       payDate: document.getElementById('mf-paydate').value || '',
       notes: document.getElementById('mf-notes').value.trim(),
-    });
+    };
+    treatments.push(newT);
+    createPaymentIfPaid(newT, '');
     save();
     closeMeetingModal();
     render();
