@@ -1138,6 +1138,7 @@
   let editingClientId = null;
   let editingTreatmentId = null;
   let isSyncing = false;
+  let isLoaded = false; // מונע שמירה לפני טעינה
 
   const now = new Date();
   let viewYear = now.getFullYear();
@@ -1203,6 +1204,7 @@
         }
         return { ...t, id: String(t.id), date, payDate, status: t.status === 'partial' ? 'unpaid' : t.status };
       });
+      isLoaded = true;
       showSyncStatus('✅ נטען בהצלחה', 'var(--green)');
       render();
     } catch (err) {
@@ -1213,6 +1215,13 @@
   async function save() {
     if (!SHEETS_URL || SHEETS_URL.includes('הכנס')) return;
     if (isSyncing) return;
+    // אל תשמור לפני שהטעינה הושלמה
+    if (!isLoaded) { console.log('שמירה בוטלה — טרם נטען'); return; }
+    // אל תשמור אם הכל ריק
+    if (clients.length === 0 && treatments.length === 0 && payments.length === 0) {
+      console.log('שמירה בוטלה — נתונים ריקים');
+      return;
+    }
     isSyncing = true;
     showSyncStatus('💾 שומר...', 'var(--muted)');
     try {
