@@ -676,6 +676,7 @@
         <div class="form-row">
           <label>תאריך טיפול</label>
           <input type="date" id="mf-date">
+          <div id="mf-suggested-dates" style="display:none;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
         <div class="form-row">
           <label>סכום לתשלום (₪)</label>
@@ -761,6 +762,10 @@
           <div class="form-row" style="margin-bottom:0;">
             <label>סכום (₪)</label>
             <input type="number" id="f-weekly-amount" value="350" min="0">
+          </div>
+          <div class="form-row" style="margin-bottom:0;">
+            <label>תאריך התחלה</label>
+            <input type="date" id="f-start-date">
           </div>
         </div>
       </div>
@@ -1127,7 +1132,7 @@
   // ================================================================
   //  הגדרות Google Sheets – הדביקי כאן את כתובת ה-Web App שלך
   // ================================================================
-  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxLYDe3HiQZr0HTjlWhQIxpWPOiqfYQpNAb2KGWVs03tUsil3qBqg6tYxV7HQGXDQ7A/exec';
+  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz9VbId9ZGULMY4_f7RDa2wQc825j4imfZjRniCIgo2sCGohWg7GkAQxMu4T3-gTNIR/exec';
   // ================================================================
 
   let clients = [];
@@ -1196,13 +1201,20 @@
             date = y + '-' + mo + '-' + d;
           } else { date = ''; }
         }
+        let cancelDate = String(t.cancelDate || '');
+        if (cancelDate && !cancelDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const parsed = new Date(cancelDate);
+          if (!isNaN(parsed)) {
+            cancelDate = parsed.getFullYear() + '-' + String(parsed.getMonth()+1).padStart(2,'0') + '-' + String(parsed.getDate()).padStart(2,'0');
+          } else cancelDate = '';
+        }
         let payDate = String(t.payDate || '');
         if (payDate && !payDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
           const pp = new Date(payDate);
           if (!isNaN(pp)) { payDate = pp.getFullYear() + '-' + String(pp.getMonth()+1).padStart(2,'0') + '-' + String(pp.getDate()).padStart(2,'0'); }
           else payDate = '';
         }
-        return { ...t, id: String(t.id), date, payDate, status: t.status === 'partial' ? 'unpaid' : t.status };
+        return { ...t, id: String(t.id), date, payDate, cancelDate, status: t.status === 'partial' ? 'unpaid' : t.status };
       });
       isLoaded = true;
       showSyncStatus('✅ נטען בהצלחה', 'var(--green)');
@@ -1218,14 +1230,31 @@
     // אל תשמור לפני שהטעינה הושלמה
     if (!isLoaded) { console.log('שמירה בוטלה — טרם נטען'); return; }
     // אל תשמור אם הכל ריק
-    if (clients.length === 0 && treatments.length === 0 && payments.length === 0) {
-      console.log('שמירה בוטלה — נתונים ריקים');
+    if (clients.length === 0) {
+      console.log('שמירה בוטלה — אין לקוחות');
       return;
     }
     isSyncing = true;
     showSyncStatus('💾 שומר...', 'var(--muted)');
     try {
-      const payload = JSON.stringify({ action: 'save', clients, treatments, payments });
+      // נרמל תאריכים לפורמט YYYY-MM-DD לפני שמירה
+      function normDate(d) {
+        if (!d) return '';
+        const s = String(d);
+        if (s.match(/^\d{4}-\d{2}-\d{2}$/)) return s;
+        const p = new Date(s);
+        if (!isNaN(p)) return p.getFullYear() + '-' + String(p.getMonth()+1).padStart(2,'0') + '-' + String(p.getDate()).padStart(2,'0');
+        return '';
+      }
+      const cleanTreatments = treatments.map(t => ({
+        ...t,
+        date: normDate(t.date),
+        payDate: normDate(t.payDate),
+        cancelDate: normDate(t.cancelDate),
+        cancelPayDate: normDate(t.cancelPayDate),
+      }));
+      const cleanPayments = payments.map(p => ({ ...p, date: normDate(p.date) }));
+      const payload = JSON.stringify({ action: 'save', clients, treatments: cleanTreatments, payments: cleanPayments });
       // נסה POST קודם (יציב יותר לנתונים גדולים)
       let res, text, result;
       try {
@@ -1278,10 +1307,12 @@
   }
 
   function statusBadge(t) {
-    if (t.status === 'paid') {
-      return `<span class="badge badge-paid badge-clickable" onclick="toggleStatus('${t.id}')" title="לחץ לשינוי">✅ שולם</span>`;
+    if (t.status === 'cancelled') {
+      if (t.cancelPaid) return `<span class="badge" style="background:#fff3e0;color:#e65100;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">🚫 בוטל+שולם</span>`;
+      return `<span class="badge" style="background:#fff3e0;color:#e65100;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">🚫 בוטל</span>`;
     }
-    return `<span class="badge badge-unpaid badge-clickable" onclick="toggleStatus('${t.id}')" title="לחץ לסימון כשולם">⚠️ לא שולם</span>`;
+    if (t.status === 'paid') return `<span class="badge badge-paid">✅ שולם</span>`;
+    return `<span class="badge badge-unpaid">⚠️ לא שולם</span>`;
   }
 
   function autoFillPayDate(fieldId, status) {
@@ -1401,19 +1432,19 @@
 
     const search = document.getElementById('searchInput').value.toLowerCase();
 
-    // All treatments in this month (including cancelled)
+    // טיפולים שבוצעו החודש (לא מבוטלים)
     const monthTreatments = treatments.filter(t => {
-      if (!t.date) return false;
+      if (!t.date || t.status === 'cancelled') return false;
       const [y, m] = t.date.split('-').map(Number);
       return y === viewYear && (m - 1) === viewMonth;
     });
 
-    // Also include cancelled treatments where cancelDate is this month
+    // טיפולים מבוטלים שתאריך הטיפול שלהם הוא החודש
     const cancelledThisMonth = treatments.filter(t => {
-      if (t.status !== 'cancelled' || !t.cancelDate) return false;
-      const [y, m] = t.cancelDate.split('-').map(Number);
+      if (t.status !== 'cancelled' || !t.date) return false;
+      const [y, m] = t.date.split('-').map(Number);
       return y === viewYear && (m - 1) === viewMonth;
-    }).filter(t => !monthTreatments.find(x => x.id === t.id));
+    });
 
     const allMonthTreatments = [...monthTreatments, ...cancelledThisMonth];
 
@@ -1447,22 +1478,26 @@
     } else {
       tbody.innerHTML = filtered.map(t => {
         const c = clients.find(x => String(x.id) === String(t.clientId)) || { name: '?', phone: '' };
+        const isCancelled = t.status === 'cancelled';
+        const isCancelledPaid = isCancelled && (t.cancelPaid || t.payDate);
         return `
-        <tr>
+        <tr style="${isCancelled ? 'background:#fff8f5;opacity:0.85;border-right:3px solid #e65100;' : ''}">
           <td>
-            <div class="client-name">${c.name}</div>
+            <div class="client-name" style="${isCancelled ? 'text-decoration:line-through;color:var(--muted);' : ''}">${c.name}</div>
             ${c.phone ? `<div class="client-phone">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : ''}
-            ${c.tz ? `<div class="client-phone">🪪 ${c.tz}</div>` : ''}
           </td>
-          <td><div class="meeting-date">${formatDate(t.date)}</div></td>
-          <td><div class="meeting-notes">${t.notes || '—'}</div></td>
-          <td><div class="amount">${t.amount ? '₪' + t.amount.toLocaleString() : '—'}</div></td>
+          <td>
+            <div class="meeting-date" style="${isCancelled ? 'text-decoration:line-through;color:var(--muted);' : ''}">${formatDate(t.date)}</div>
+
+          </td>
+          <td><div class="meeting-notes">${isCancelled ? (t.cancelNote || '—') : (t.notes || '—')}</div></td>
+          <td><div class="amount">${isCancelled ? (t.cancelAmount ? '₪' + t.cancelAmount.toLocaleString() : '—') : (t.amount ? '₪' + t.amount.toLocaleString() : '—')}</div></td>
           <td>${statusBadge(t)}</td>
           <td><div class="meeting-date" style="font-size:12px;">${t.payDate ? formatDate(t.payDate) : '—'}</div></td>
           <td>
             <div class="actions">
-              <button class="action-btn" onclick="openTreatmentEdit('${t.id}')" title="עריכה">✏️</button>
-              ${t.status !== 'cancelled' && t.date && new Date(t.date) > new Date() ? `<button class="action-btn" onclick="openCancelModal('${t.id}')" title="ביטול טיפול" style="font-size:13px;">🚫</button>` : ''}
+              ${!isCancelled ? `<button class="action-btn" onclick="openTreatmentEdit('${t.id}')" title="עריכה">✏️</button>` : ''}
+              ${!isCancelled && t.seriesId && new Date(t.date) > new Date() ? `<button class="action-btn" onclick="openCancelModal('${t.id}')" title="ביטול טיפול" style="font-size:13px;">🚫</button>` : ''}
               <button class="action-btn delete" onclick="deleteTreatment('${t.id}')" title="מחיקה">🗑️</button>
             </div>
           </td>
@@ -1493,7 +1528,7 @@
                   ${t.status === 'paid'
                     ? `<span style="background:var(--green-light);color:var(--green);padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;">✅ שולם</span>`
                     : t.status === 'cancelled'
-                    ? `<span style="background:#fff3e0;color:#e65100;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;">🚫 בוטל</span>`
+                    ? `<span style="background:#fff3e0;color:#e65100;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;">${t.cancelPaid ? '🚫 בוטל+שולם' : '🚫 בוטל'}</span>`
                     : `<span style="background:var(--red-light);color:var(--red);padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;">⚠️ לא שולם</span>`
                   }
                 </div>
@@ -1515,11 +1550,17 @@
     document.getElementById('stat-unpaid').textContent = allMonthTreatments.filter(t => t.status === 'unpaid').length;
 
     // הכנסות לפי תאריך תשלום
-    const paidThisMonth = treatments.filter(t =>
-      t.status === 'paid' && t.payDate &&
-      t.payDate.startsWith(viewYear + '-' + String(viewMonth + 1).padStart(2, '0'))
-    );
-    const monthRevenue = paidThisMonth.reduce((sum, t) => sum + (t.amount || 0), 0);
+    const paidThisMonth = treatments.filter(t => {
+      if (t.status === 'paid' && t.payDate) {
+        return t.payDate.startsWith(viewYear + '-' + String(viewMonth + 1).padStart(2, '0'));
+      }
+      if (t.status === 'cancelled' && t.cancelPaid) {
+        const pd = t.cancelPayDate || t.payDate || '';
+        return pd.startsWith(viewYear + '-' + String(viewMonth + 1).padStart(2, '0'));
+      }
+      return false;
+    });
+    const monthRevenue = paidThisMonth.reduce((sum, t) => sum + (t.status === 'cancelled' ? (t.cancelAmount || 0) : (t.amount || 0)), 0);
     document.getElementById('stat-revenue-month').textContent = '₪' + monthRevenue.toLocaleString();
 
     const paidThisYear = treatments.filter(t =>
@@ -1560,6 +1601,7 @@
       document.getElementById('f-day').value = c.scheduleDay !== undefined ? c.scheduleDay : '1';
       document.getElementById('f-time').value = c.scheduleTime || '16:00';
       document.getElementById('f-weekly-amount').value = c.weeklyAmount || '350';
+      document.getElementById('f-start-date').value = c.startDate || '';
       toggleScheduleFields();
     } else {
       document.getElementById('modalTitle').textContent = 'לקוח חדש';
@@ -1570,6 +1612,7 @@
       document.getElementById('f-day').value = '1';
       document.getElementById('f-time').value = '16:00';
       document.getElementById('f-weekly-amount').value = '350';
+      document.getElementById('f-start-date').value = '';
       toggleScheduleFields();
     }
   }
@@ -1599,6 +1642,7 @@
           scheduleDay: parseInt(document.getElementById('f-day').value),
           scheduleTime: document.getElementById('f-time').value,
           weeklyAmount: parseFloat(document.getElementById('f-weekly-amount').value) || 350,
+          startDate: document.getElementById('f-start-date').value || '',
         }
         : c);
     } else {
@@ -1610,6 +1654,7 @@
       scheduleDay: parseInt(document.getElementById('f-day').value),
       scheduleTime: document.getElementById('f-time').value,
       weeklyAmount: parseFloat(document.getElementById('f-weekly-amount').value) || 350,
+      startDate: document.getElementById('f-start-date').value || '',
     });
     }
 
@@ -1807,6 +1852,8 @@
         );
         const isCancelled = existing && existing.status === 'cancelled';
 
+        // הצג רק מתאריך ההתחלה
+        if (c.startDate && dateStr < c.startDate) return '';
         return `<div class="cal-slot ${isCancelled ? 'cancelled-slot' : 'active-slot'} ${isPast && !isCancelled ? 'past-slot' : ''}"
           onclick="${isCancelled ? '' : `openCalCancel('${c.id}','${dateStr}')`}"
           title="${c.name}">
@@ -1908,7 +1955,7 @@
       document.getElementById('pm-summary-wrap').style.display = 'none';
       return;
     }
-    const unpaid = treatments.filter(t => String(t.clientId) === String(clientId) && t.status === 'unpaid');
+    const unpaid = treatments.filter(t => String(t.clientId) === String(clientId) && (t.status === 'unpaid' || t.status === 'cancelled'));
     const list = document.getElementById('pm-treatments-list');
 
     if (unpaid.length === 0) {
@@ -1923,13 +1970,13 @@
     document.getElementById('pm-summary-wrap').style.display = 'block';
 
     list.innerHTML = unpaid.map(t => `
-      <div class="pm-treatment-row" id="pmrow-${t.id}" onclick="togglePaymentTreatment('${t.id}', ${t.amount || 0})">
+      <div class="pm-treatment-row" id="pmrow-${t.id}" onclick="togglePaymentTreatment('${t.id}', ${t.status === 'cancelled' ? (t.cancelAmount || 0) : (t.amount || 0)})">
         <div class="pm-checkbox" id="pmcheck-${t.id}"></div>
         <div style="flex:1;">
-          <div style="font-weight:700;font-size:14px;">${formatDate(t.date)}</div>
+          <div style="font-weight:700;font-size:14px;">${formatDate(t.date)} ${t.status === 'cancelled' ? '<span style="font-size:11px;color:#e65100;font-weight:700;">🚫 בוטל</span>' : ''}</div>
           ${t.notes ? `<div style="font-size:12px;color:var(--muted);">${t.notes}</div>` : ''}
         </div>
-        <div style="font-weight:800;font-size:15px;">₪${(t.amount||0).toLocaleString()}</div>
+        <div style="font-weight:800;font-size:15px;">₪${(t.status === 'cancelled' ? (t.cancelAmount||0) : (t.amount||0)).toLocaleString()}</div>
       </div>
     `).join('');
 
@@ -1955,7 +2002,7 @@
     let total = 0;
     selectedPaymentTreatments.forEach(tid => {
       const t = treatments.find(x => x.id === tid);
-      if (t) total += t.amount || 0;
+      if (t) total += t.status === 'cancelled' ? (t.cancelAmount || 0) : (t.amount || 0);
     });
     document.getElementById('pm-total-amount').textContent = '₪' + total.toLocaleString();
   }
@@ -1973,7 +2020,13 @@
     let total = 0;
     treatmentIds.forEach(tid => {
       const t = treatments.find(x => x.id === tid);
-      if (t) {
+      if (!t) return;
+      if (t.status === 'cancelled') {
+        t.cancelPaid = true;
+        t.cancelPayDate = payDate;
+        t.payDate = payDate;
+        total += t.cancelAmount || 0;
+      } else {
         t.status = 'paid';
         t.payDate = payDate;
         total += t.amount || 0;
@@ -2064,16 +2117,24 @@
             <div class="year-label">
               <span>📅 ${year}</span>
               <span class="year-summary">
-                <span style="color:var(--text);">${yts.length} טיפולים</span>
+                <span style="color:var(--text);">${yts.filter(t => t.status !== 'cancelled').length} טיפולים</span>
                 <span style="color:var(--green);">₪${yPaid.toLocaleString()} שולם</span>
                 ${yUnpaid > 0 ? `<span style="color:var(--red);">${yUnpaid} לא שולמו</span>` : ''}
+                ${yts.filter(t => t.status === 'cancelled').length > 0 ? `<span style="color:#e65100;">${yts.filter(t => t.status === 'cancelled').length} בוטלו</span>` : ''}
               </span>
             </div>`;
         for (const t of yts) {
+          const isCancelled = t.status === 'cancelled';
+        const isCancelledPaid = isCancelled && (t.cancelPaid || t.payDate);
           html += `
-            <div class="ph-row" style="grid-template-columns:1fr auto;">
-              <div style="font-weight:600;color:var(--text);">${formatDate(t.date)}</div>
-              <div>${t.status === 'paid'
+            <div class="ph-row" style="grid-template-columns:1fr auto;${isCancelled ? 'opacity:0.7;background:#fff8f5;' : ''}">
+              <div>
+                <div style="font-weight:600;color:${isCancelled ? 'var(--muted)' : 'var(--text)'};${isCancelled ? 'text-decoration:line-through;' : ''}">${formatDate(t.date)}</div>
+
+              </div>
+              <div>${isCancelled
+                ? `<span style="background:#fff3e0;color:#e65100;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${t.cancelPaid ? '🚫 בוטל+שולם' : '🚫 בוטל'}</span>`
+                : t.status === 'paid'
                 ? '<span style="background:var(--green-light);color:var(--green);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✅ שולם</span>'
                 : '<span style="background:var(--red-light);color:var(--red);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">⚠️ לא שולם</span>'
               }</div>
@@ -2217,23 +2278,29 @@
     p.note = document.getElementById('epm-note').value.trim();
     p.total = p.treatmentIds.reduce((s, tid) => {
       const t = treatments.find(x => x.id === tid);
-      return s + (t ? t.amount || 0 : 0);
+      if (!t) return s;
+      return s + (t.status === 'cancelled' ? (t.cancelAmount || 0) : (t.amount || 0));
     }, 0);
 
     // עדכון סטטוס טיפולים — שולם אם בתשלום, לא שולם אם הוסר
     treatments.forEach(t => {
       if (String(t.clientId) === String(p.clientId)) {
         if (p.treatmentIds.includes(t.id)) {
-          // טיפול כלול בתשלום זה
-          t.status = 'paid';
+          // טיפול כלול בתשלום זה — אל תשנה מבוטל
+          if (t.status !== 'cancelled') { t.status = 'paid'; }
+          else { t.cancelPaid = true; t.cancelPayDate = p.date; }
           t.payDate = p.date;
         } else {
           // בדוק אם הטיפול כלול בתשלום אחר
           const inOtherPayment = payments.some(op => op.id !== paymentId && (op.treatmentIds || []).includes(t.id));
           if (!inOtherPayment && t.payDate === p.date) {
-            // הוסר מהתשלום הזה ואין תשלום אחר — החזר ללא שולם
-            t.status = 'unpaid';
-            t.payDate = '';
+            if (t.status !== 'cancelled') {
+              t.status = 'unpaid';
+              t.payDate = '';
+            } else {
+              t.cancelPaid = false;
+              t.cancelPayDate = '';
+            }
           }
         }
       }
@@ -2304,12 +2371,16 @@
     document.getElementById('f-date').value = t.date || '';
       document.getElementById('f-paydate').value = t.payDate || '';
     document.getElementById('f-amount').value = t.amount || '';
-    document.getElementById('f-status').value = t.status || 'unpaid';
+    document.getElementById('f-status').value = t.status === 'cancelled' ? 'unpaid' : (t.status || 'unpaid');
+    // הסתר שדה סטטוס אם טיפול מבוטל
+    const statusRow = document.getElementById('f-status').closest('.form-row');
+    if (statusRow) statusRow.style.display = t.status === 'cancelled' ? 'none' : '';
     document.getElementById('f-notes').value = t.notes || '';
   }
 
   function createPaymentIfPaid(treatment, oldStatus) {
     if (treatment.status !== 'paid') return;
+    if (treatment.status === 'cancelled') return; // לעולם לא לשנות מבוטל
     // בדוק אם כבר קיים תשלום שכולל טיפול זה
     const alreadyInPayment = payments.some(p => (p.treatmentIds || []).includes(treatment.id));
     if (alreadyInPayment) return;
@@ -2337,7 +2408,8 @@
       date: document.getElementById('f-date').value,
       payDate: document.getElementById('f-paydate').value || '',
       amount: parseFloat(document.getElementById('f-amount').value) || 0,
-      status: document.getElementById('f-status').value,
+      // שמור cancelled אם הטיפול מבוטל — אל תאפשר שינוי לpaid/unpaid דרך הטופס
+      status: oldT && oldT.status === 'cancelled' ? 'cancelled' : document.getElementById('f-status').value,
       paidAmount: 0,
       notes: document.getElementById('f-notes').value.trim(),
     } : t);
@@ -2611,9 +2683,42 @@
     `;
     document.getElementById('mf-date').value = '';
     document.getElementById('mf-paydate').value = '';
-    document.getElementById('mf-amount').value = '350';
+    document.getElementById('mf-amount').value = c.weeklyAmount || '350';
     document.getElementById('mf-status').value = 'unpaid';
     document.getElementById('mf-notes').value = '';
+
+    // הצע תאריכים לפי הלוח השבועי של הלקוח
+    const suggestEl = document.getElementById('mf-suggested-dates');
+    if (c.active !== 'inactive' && c.scheduleDay !== undefined) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const suggestions = [];
+      let current = new Date(today);
+      // מצא את הפגישה הבאה ו-3 הבאות אחריה
+      const diff = (c.scheduleDay - current.getDay() + 7) % 7;
+      current.setDate(current.getDate() + (diff === 0 ? 0 : diff));
+      for (let i = 0; i < 4; i++) {
+        const d = new Date(current);
+        const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        // בדוק שאין כבר טיפול בתאריך הזה
+        const exists = treatments.find(t => String(t.clientId) === String(id) && t.date === dateStr && t.status !== 'cancelled');
+        if (!exists) suggestions.push(dateStr);
+        current.setDate(current.getDate() + 7);
+      }
+      if (suggestions.length > 0) {
+        suggestEl.style.display = 'flex';
+        suggestEl.innerHTML = '<div style="width:100%;font-size:11px;color:var(--muted);margin-bottom:2px;">תאריכים מוצעים לפי הלוח השבועי:</div>' +
+          suggestions.map(d => `
+            <button onclick="document.getElementById('mf-date').value='${d}'" type="button"
+              style="padding:5px 10px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-light);color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">
+              ${formatDate(d)}
+            </button>`).join('');
+      } else {
+        suggestEl.style.display = 'none';
+      }
+    } else {
+      suggestEl.style.display = 'none';
+    }
+
     document.getElementById('meetingStep1').style.display = 'none';
     document.getElementById('meetingStep2').style.display = 'block';
   }
