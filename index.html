@@ -356,9 +356,11 @@
     backdrop-filter: blur(4px);
     z-index: 200;
     display: none;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     padding: 20px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .modal-overlay.open { display: flex; }
@@ -371,6 +373,7 @@
     max-width: 500px;
     box-shadow: var(--shadow-lg);
     animation: modalIn 0.3s ease;
+    margin: auto;
   }
 
   .modal-title {
