@@ -9,28 +9,31 @@
   @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
 
   :root {
-    --bg: #f5f3ee;
+    --bg: #f0f4fa;
     --surface: #ffffff;
-    --border: #e2ddd6;
-    --text: #1a1814;
-    --muted: #8a8278;
-    --accent: #c8521a;
-    --accent-light: #fdf0e8;
-    --green: #2d7a4f;
-    --green-light: #e8f5ee;
-    --red: #c0392b;
-    --red-light: #fdecea;
-    --yellow: #d4880a;
-    --yellow-light: #fef8e7;
-    --shadow: 0 2px 12px rgba(0,0,0,0.06);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+    --surface2: #e8edf5;
+    --border: #d0d8e8;
+    --text: #1a2340;
+    --muted: #6b7a9a;
+    --accent: #3b7cf4;
+    --accent-light: rgba(59,124,244,0.10);
+    --green: #1a9e5c;
+    --green-light: rgba(26,158,92,0.10);
+    --red: #dc3545;
+    --red-light: rgba(220,53,69,0.10);
+    --yellow: #e09c00;
+    --yellow-light: rgba(224,156,0,0.10);
+    --purple: #6c5ce7;
+    --purple-light: rgba(108,92,231,0.10);
+    --shadow: 0 2px 12px rgba(30,50,100,0.08);
+    --shadow-lg: 0 8px 32px rgba(30,50,100,0.14);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
     font-family: 'Heebo', sans-serif;
-    background: var(--bg);
+    background: var(--surface2);
     color: var(--text);
     min-height: 100vh;
     direction: rtl;
@@ -39,16 +42,17 @@
 
   /* HEADER */
   .header {
-    background: var(--text);
-    color: #f5f3ee;
-    padding: 24px 40px;
+    background: linear-gradient(180deg, #d6e4f7 0%, #c2d6f0 100%);
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
   }
 
   .header-brand {
@@ -60,8 +64,9 @@
   .brand-icon {
     width: 40px;
     height: 40px;
-    background: var(--accent);
-    border-radius: 10px;
+    background: linear-gradient(135deg, #3b7cf4, #6c5ce7);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(79,142,247,0.3);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -72,12 +77,13 @@
     font-size: 1.3rem;
     font-weight: 700;
     letter-spacing: -0.5px;
+    color: #1a2d5a;
   }
 
   .brand-sub {
     font-size: 12px;
-    opacity: 0.5;
-    font-weight: 300;
+    color: #5a7aa8;
+    font-weight: 500;
   }
 
   .btn-add {
@@ -97,9 +103,9 @@
   }
 
   .btn-add:hover {
-    background: #b04415;
+    filter: brightness(1.15);
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(200,82,26,0.3);
+    box-shadow: 0 6px 20px rgba(79,142,247,0.3);
   }
 
   /* STATS */
@@ -115,11 +121,13 @@
 
   .stat-card {
     background: var(--surface);
-    border-radius: 14px;
-    padding: 20px 24px;
+    border-radius: 18px;
+    padding: 18px 20px;
     box-shadow: var(--shadow);
     border: 1px solid var(--border);
+    transition: transform 0.2s, box-shadow 0.2s;
   }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 
   .stat-label {
     font-size: 12px;
@@ -129,10 +137,11 @@
   }
 
   .stat-value {
-    font-size: 2rem;
+    font-size: 1.8rem;
     font-weight: 800;
     line-height: 1;
     color: var(--text);
+    letter-spacing: -1px;
   }
 
   .stat-value.green { color: var(--green); }
@@ -173,10 +182,10 @@
     font-size: 14px;
     color: var(--text);
     outline: none;
-    transition: border-color 0.2s;
+    transition: all 0.2s;
   }
 
-  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,142,247,0.15); }
 
   .search-icon {
     position: absolute;
@@ -204,14 +213,16 @@
   .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
 
   .filter-btn.active {
-    background: var(--text);
+    background: var(--accent);
     color: white;
-    border-color: var(--text);
+    border-color: var(--accent);
+    box-shadow: 0 4px 12px rgba(79,142,247,0.3);
   }
 
   .filter-btn.active.red-filter {
     background: var(--red);
     border-color: var(--red);
+    box-shadow: 0 4px 12px rgba(240,90,90,0.3);
   }
 
   /* TABLE */
@@ -228,6 +239,7 @@
     box-shadow: var(--shadow);
     border: 1px solid var(--border);
     overflow: hidden;
+    backdrop-filter: blur(4px);
   }
 
   table {
@@ -236,7 +248,7 @@
   }
 
   thead th {
-    background: #f9f7f4;
+    background: #f5f8ff;
     padding: 14px 20px;
     text-align: right;
     font-size: 12px;
@@ -253,7 +265,7 @@
   }
 
   tbody tr:last-child { border-bottom: none; }
-  tbody tr:hover { background: #faf9f7; }
+  tbody tr:hover { background: rgba(59,124,244,0.04); }
 
   td {
     padding: 16px 20px;
@@ -298,8 +310,8 @@
     font-weight: 600;
   }
 
-  .badge-paid { background: var(--green-light); color: var(--green); }
-  .badge-unpaid { background: var(--red-light); color: var(--red); }
+  .badge-paid { background: rgba(52,201,123,0.15); color: var(--green); border: 1px solid rgba(52,201,123,0.3); }
+  .badge-unpaid { background: rgba(240,90,90,0.15); color: var(--red); border: 1px solid rgba(240,90,90,0.3); }
   .badge-clickable {
     cursor: pointer;
     transition: all 0.15s;
@@ -336,7 +348,7 @@
     transition: all 0.15s;
   }
 
-  .action-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+  .action-btn:hover { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 8px rgba(79,142,247,0.2); }
   .action-btn.delete:hover { border-color: var(--red); background: var(--red-light); }
 
   .empty-state {
@@ -352,8 +364,8 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(26,24,20,0.5);
-    backdrop-filter: blur(4px);
+    background: rgba(10,12,20,0.8);
+    backdrop-filter: blur(8px);
     z-index: 200;
     display: none;
     align-items: flex-start;
@@ -371,7 +383,7 @@
     padding: 32px;
     width: 100%;
     max-width: 500px;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 8px 40px rgba(30,50,100,0.15), 0 0 0 1px var(--border);
     animation: modalIn 0.3s ease;
     margin: auto;
   }
@@ -414,7 +426,7 @@
     font-family: 'Heebo', sans-serif;
     font-size: 14px;
     color: var(--text);
-    background: var(--bg);
+    background: var(--surface2);
     outline: none;
     transition: border-color 0.2s;
     direction: rtl;
@@ -464,9 +476,18 @@
     display: flex;
     gap: 10px;
   }
+  .desktop-nav-btns { display: flex; }
+  @media (max-width: 768px) {
+    .desktop-nav-btns { display: none !important; }
+    .bottom-nav { display: flex; }
+  }
+  @media (min-width: 769px) {
+    .bottom-nav { display: none; }
+    body { padding-bottom: 0; }
+  }
 
   .month-nav-wrap {
-    padding: 24px 40px 0;
+    padding: 20px 20px 0;
     max-width: 1200px;
     margin: 0 auto;
     animation: fadeUp 0.5s ease both;
@@ -542,6 +563,57 @@
 
     .badge-clickable { padding: 8px 12px; font-size: 12px; }
   }
+
+/* BOTTOM NAV BAR */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 150;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -4px 20px rgba(30,50,100,0.1);
+}
+.bottom-nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 4px 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-family: 'Heebo', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  gap: 4px;
+  transition: color 0.2s;
+  position: relative;
+}
+.bottom-nav-btn:active { transform: scale(0.92); }
+.bottom-nav-btn .nav-icon { font-size: 22px; line-height: 1; }
+.bottom-nav-btn.active { color: var(--accent); }
+.bottom-nav-btn.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20%; right: 20%;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 0 0 4px 4px;
+}
+.bottom-nav-btn.green { color: var(--green); }
+.bottom-nav-btn.green::before { background: var(--green); }
+.bottom-nav-btn.purple { color: var(--purple); }
+.bottom-nav-btn.purple::before { background: var(--purple); }
+.bottom-nav-btn.pink { color: #e91e8c; }
+.bottom-nav-btn.pink::before { background: #e91e8c; }
+
+/* push content above bottom bar */
+body { padding-bottom: 70px; }
+
 </style>
 </head>
 <body>
@@ -554,27 +626,22 @@
       <div class="brand-sub">קלינאית</div>
     </div>
   </div>
-  <div class="header-actions">
-    <span id="sync-status" style="font-size:12px;color:var(--muted);align-self:center;transition:opacity 0.5s;white-space:nowrap;"></span>
-    <button class="btn-add" style="background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,0.15);padding:10px 16px;" onclick="loadFromSheets()" title="רענן נתונים">🔄</button>
-<button class="btn-add btn-add-wide" style="background:#e91e8c;" onclick="openWeeklyCalendar()">
-      <span>🗓️</span> לוח שבועי
-    </button>
-    <button class="btn-add btn-add-wide" style="background:#7c6ef7;" onclick="openPaymentModal()">
-      <span>💳</span> קבלת תשלום
-    </button>
-    <button class="btn-add btn-add-wide" style="background:var(--green);" onclick="openMeetingModal()">
-      <span>📅</span> טיפול חדש
-    </button>
-    <button class="btn-add btn-add-wide" style="background:var(--surface);color:var(--text);border:1px solid var(--border);" onclick="openClientsPanel()">
-      <span>👥</span> ניהול לקוחות
-    </button>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span id="sync-status" style="font-size:12px;color:var(--muted);transition:opacity 0.5s;white-space:nowrap;"></span>
+    <button onclick="loadFromSheets()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;" title="רענן">🔄</button>
+    <!-- Desktop only buttons -->
+    <div class="desktop-nav-btns" style="display:flex;gap:8px;">
+      <button class="btn-add" style="background:linear-gradient(135deg,#34c97b,#28a062);box-shadow:0 4px 12px rgba(52,201,123,0.25);padding:9px 16px;font-size:13px;" onclick="openMeetingModal()">➕ טיפול חדש</button>
+      <button class="btn-add" style="background:linear-gradient(135deg,#7c6ef7,#5c4fd6);box-shadow:0 4px 12px rgba(124,110,247,0.25);padding:9px 16px;font-size:13px;" onclick="openPaymentModal()">💳 תשלום</button>
+      <button class="btn-add" style="background:linear-gradient(135deg,#e91e8c,#c2185b);box-shadow:0 4px 12px rgba(233,30,140,0.25);padding:9px 16px;font-size:13px;" onclick="openWeeklyCalendar()">🗓️ לוח</button>
+      <button class="btn-add" style="background:var(--surface2);border:1px solid var(--border);padding:9px 16px;font-size:13px;" onclick="openClientsPanel()">👥 לקוחות</button>
+    </div>
   </div>
 </div>
 
 <!-- MONTH NAVIGATOR -->
 <div class="month-nav-wrap">
-  <div style="display:flex;align-items:center;gap:16px;background:var(--surface);border-radius:14px;padding:16px 24px;border:1px solid var(--border);box-shadow:var(--shadow);">
+  <div style="display:flex;align-items:center;gap:16px;background:var(--surface);border-radius:16px;padding:16px 24px;border:1px solid var(--border);box-shadow:var(--shadow);">
     <button onclick="changeMonth(-1)" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">‹</button>
     <div style="flex:1;text-align:center;">
       <div id="month-label" style="font-size:1.2rem;font-weight:800;color:var(--text);"></div>
@@ -584,36 +651,50 @@
   </div>
 </div>
 
-<div class="stats" id="stats" style="grid-template-columns: repeat(3,1fr); gap:12px;">
-  <div class="stat-card">
-    <div class="stat-label">טיפולים החודש</div>
-    <div class="stat-value orange" id="stat-total">0</div>
-    <div class="stat-sub">טיפולים</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">שילמו החודש</div>
-    <div class="stat-value green" id="stat-paid">0</div>
-    <div class="stat-sub">לקוחות</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">טרם שילמו</div>
-    <div class="stat-value red" id="stat-unpaid">0</div>
-    <div class="stat-sub">החודש</div>
-  </div>
-</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 20px 0;max-width:1200px;margin:0 auto;">
 
-<!-- Income Row -->
-<div class="income-row">
-  <div class="stat-card" style="border:2px solid var(--green);">
-    <div class="stat-label">💰 הכנסות החודש</div>
-    <div class="stat-value green" id="stat-revenue-month">₪0</div>
-    <div class="stat-sub">שולם החודש</div>
+  <!-- כרטיס טיפולים -->
+  <div style="background:var(--surface);border-radius:20px;padding:20px;box-shadow:var(--shadow);border:1px solid var(--border);">
+    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:14px;letter-spacing:0.5px;">📋 טיפולים</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--muted);">השנה</span>
+        <span style="font-size:1.6rem;font-weight:800;color:var(--accent);" id="stat-year-total">0</span>
+      </div>
+      <div style="height:1px;background:var(--border);"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--muted);">החודש</span>
+        <span style="font-size:1.3rem;font-weight:700;color:var(--text);" id="stat-total">0</span>
+      </div>
+      <div style="height:1px;background:var(--border);"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--muted);">⚠️ לא שולמו</span>
+        <span style="font-size:1.3rem;font-weight:700;color:var(--red);" id="stat-unpaid">0</span>
+      </div>
+    </div>
   </div>
-  <div class="stat-card" style="border:2px solid var(--accent);">
-    <div class="stat-label">📈 הכנסות השנה</div>
-    <div class="stat-value orange" id="stat-revenue-year">₪0</div>
-    <div class="stat-sub" id="stat-year-label">שולם השנה</div>
+
+  <!-- כרטיס הכנסות -->
+  <div style="background:var(--surface);border-radius:20px;padding:20px;box-shadow:var(--shadow);border:1px solid var(--border);">
+    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:14px;letter-spacing:0.5px;">💰 הכנסות</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--muted);">השנה</span>
+        <span style="font-size:1.6rem;font-weight:800;color:var(--green);" id="stat-revenue-year">₪0</span>
+      </div>
+      <div style="height:1px;background:var(--border);"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--muted);">החודש</span>
+        <span style="font-size:1.3rem;font-weight:700;color:var(--text);" id="stat-revenue-month">₪0</span>
+      </div>
+      <div style="height:1px;background:var(--border);"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--muted);">ממוצע לחודש</span>
+        <span style="font-size:1.3rem;font-weight:700;color:var(--accent);" id="stat-avg-month">₪0</span>
+      </div>
+    </div>
   </div>
+
 </div>
 
 <div class="controls">
@@ -624,6 +705,24 @@
   <div style="position:relative;">
     <select id="clientFilter" onchange="setClientFilter(this.value)" style="padding:11px 36px 11px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-family:'Heebo',sans-serif;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;outline:none;transition:all 0.2s;appearance:none;-webkit-appearance:none;min-width:160px;">
       <option value="">👤 כל הלקוחות</option>
+    </select>
+    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted);font-size:12px;">▾</span>
+  </div>
+  <div style="position:relative;">
+    <select id="listMonthFilter" onchange="setListMonth(this.value)" style="padding:11px 36px 11px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-family:'Heebo',sans-serif;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;outline:none;transition:all 0.2s;appearance:none;-webkit-appearance:none;min-width:140px;">
+      <option value="">📅 כל החודשים</option>
+      <option value="0">ינואר</option>
+      <option value="1">פברואר</option>
+      <option value="2">מרץ</option>
+      <option value="3">אפריל</option>
+      <option value="4">מאי</option>
+      <option value="5">יוני</option>
+      <option value="6">יולי</option>
+      <option value="7">אוגוסט</option>
+      <option value="8">ספטמבר</option>
+      <option value="9">אוקטובר</option>
+      <option value="10">נובמבר</option>
+      <option value="11">דצמבר</option>
     </select>
     <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted);font-size:12px;">▾</span>
   </div>
@@ -744,7 +843,7 @@
           <option value="inactive">⏸️ לא פעיל</option>
         </select>
       </div>
-      <div id="f-schedule-fields" style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:4px;">
+      <div id="f-schedule-fields" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:4px;">
         <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;">⏰ לוח שבועי קבוע</div>
         <div class="form-grid">
           <div class="form-row" style="margin-bottom:0;">
@@ -847,7 +946,7 @@
 /* Weekly Calendar */
 #calendarOverlay {
   position: fixed; inset: 0;
-  background: rgba(26,24,20,0.55);
+  background: rgba(15,30,70,0.6);
   backdrop-filter: blur(4px);
   z-index: 300; display: none;
   align-items: flex-start; justify-content: center;
@@ -872,7 +971,7 @@
   border-radius: 0 0 20px 20px; overflow: hidden;
 }
 .cal-day-header {
-  background: var(--bg);
+  background: var(--surface2);
   padding: 10px 8px; text-align: center;
   font-size: 12px; font-weight: 800; color: var(--muted);
 }
@@ -886,8 +985,8 @@
   border: 1px solid transparent;
 }
 .cal-slot:hover { opacity: 0.8; }
-.cal-slot.active-slot { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
-.cal-slot.cancelled-slot { background: #fff3e0; color: #e65100; border-color: #ffcc80; text-decoration: line-through; }
+.cal-slot.active-slot { background: rgba(52,201,123,0.12); color: #2e7d32; border-color: #a5d6a7; }
+.cal-slot.cancelled-slot { background: rgba(230,81,0,0.15); color: #c0392b; border-color: #ffcc80; text-decoration: line-through; }
 .cal-slot.past-slot { opacity: 0.5; cursor: default; }
 @media (max-width: 600px) {
   .cal-grid { grid-template-columns: repeat(3, 1fr); }
@@ -896,7 +995,7 @@
 /* Payment Modal */
 #paymentOverlay {
   position: fixed; inset: 0;
-  background: rgba(26,24,20,0.55);
+  background: rgba(15,30,70,0.6);
   backdrop-filter: blur(4px);
   z-index: 300; display: none;
   align-items: center; justify-content: center; padding: 20px;
@@ -913,11 +1012,11 @@
 .pm-treatment-row {
   display: flex; align-items: center; gap: 12px;
   padding: 12px 16px; border-radius: 12px;
-  border: 2px solid var(--border); background: var(--bg);
+  border: 2px solid var(--border); background: var(--surface2);
   cursor: pointer; transition: all 0.15s;
 }
 .pm-treatment-row.selected {
-  border-color: #7c6ef7;
+  border-color: var(--purple);
   background: #f0eeff;
 }
 .pm-treatment-row:hover { border-color: #b0a8f0; }
@@ -928,10 +1027,10 @@
   flex-shrink: 0; transition: all 0.15s;
 }
 .pm-treatment-row.selected .pm-checkbox {
-  background: #7c6ef7; border-color: #7c6ef7; color: white; font-size: 12px;
+  background: #7c6ef7; border-color: var(--purple); color: white; font-size: 12px;
 }
 .pm-total {
-  background: #f0eeff; border: 1px solid #7c6ef7;
+  background: #f0eeff; border: 1px solid rgba(124,110,247,0.5);
   border-radius: 12px; padding: 14px 20px;
   display: flex; justify-content: space-between; align-items: center;
 }
@@ -940,7 +1039,7 @@
 #patientHistoryOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(26,24,20,0.55);
+  background: rgba(15,30,70,0.6);
   backdrop-filter: blur(4px);
   z-index: 300;
   display: none;
@@ -1001,7 +1100,7 @@
   border-radius: 10px;
   border: 1px solid var(--border);
   margin-bottom: 7px;
-  background: var(--bg);
+  background: var(--surface2);
   font-size: 13px;
   transition: box-shadow 0.15s;
 }
@@ -1047,7 +1146,7 @@
       <div id="pm-summary-wrap" style="display:none;">
         <div class="pm-total">
           <div style="font-size:14px;font-weight:600;">סה"כ לתשלום</div>
-          <div style="font-size:1.4rem;font-weight:800;color:#7c6ef7;" id="pm-total-amount">₪0</div>
+          <div style="font-size:1.4rem;font-weight:800;color:var(--purple);" id="pm-total-amount">₪0</div>
         </div>
         <div class="form-row" style="margin-top:14px;">
           <label style="font-size:13px;">תאריך תשלום</label>
@@ -1084,13 +1183,13 @@
 </div>
 
 <!-- CANCEL MODAL -->
-<div id="cancelOverlay" style="position:fixed;inset:0;background:rgba(26,24,20,0.55);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;" onclick="closeCancelModalOnOverlay(event)">
+<div id="cancelOverlay" style="position:fixed;inset:0;background:rgba(15,30,70,0.6);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;" onclick="closeCancelModalOnOverlay(event)">
   <div style="background:var(--surface);border-radius:20px;width:100%;max-width:400px;padding:28px;box-shadow:var(--shadow-lg);direction:rtl;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
       <div style="font-size:1.1rem;font-weight:800;">🚫 ביטול טיפול</div>
       <button onclick="closeCancelModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
     </div>
-    <div id="cancel-treatment-info" style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:14px;"></div>
+    <div id="cancel-treatment-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:14px;"></div>
     <div class="form-row">
       <label>תאריך ביטול</label>
       <input type="date" id="cancel-date">
@@ -1151,6 +1250,7 @@
   const now = new Date();
   let viewYear = now.getFullYear();
   let viewMonth = now.getMonth();
+  let selectedListMonth = null; // null = כל החודשים ברשימה
 
   const hebrewMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
@@ -1311,8 +1411,8 @@
 
   function statusBadge(t) {
     if (t.status === 'cancelled') {
-      if (t.cancelPaid) return `<span class="badge" style="background:#fff3e0;color:#e65100;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">🚫 בוטל+שולם</span>`;
-      return `<span class="badge" style="background:#fff3e0;color:#e65100;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">🚫 בוטל</span>`;
+      if (t.cancelPaid) return `<span class="badge" style="background:rgba(230,81,0,0.15);color:#c0392b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">🚫 בוטל+שולם</span>`;
+      return `<span class="badge" style="background:rgba(230,81,0,0.15);color:#c0392b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">🚫 בוטל</span>`;
     }
     if (t.status === 'paid') return `<span class="badge badge-paid">✅ שולם</span>`;
     return `<span class="badge badge-unpaid">⚠️ לא שולם</span>`;
@@ -1404,6 +1504,15 @@
     render();
   }
 
+  function setListMonth(val) {
+    selectedListMonth = val === '' ? null : parseInt(val);
+    const sel = document.getElementById('listMonthFilter');
+    sel.style.color = val ? 'var(--text)' : 'var(--muted)';
+    sel.style.borderColor = val ? 'var(--accent)' : 'var(--border)';
+    sel.style.background = val ? 'var(--accent-light)' : 'var(--surface)';
+    render();
+  }
+
   function setClientFilter(val) {
     selectedClientFilter = val;
     const sel = document.getElementById('clientFilter');
@@ -1424,7 +1533,7 @@
 
   function render() {
     document.getElementById('month-label').textContent = `${hebrewMonths[viewMonth]} ${viewYear}`;
-    document.getElementById('stat-year-label').textContent = `שולם ב-${viewYear}`;
+
 
     // Populate client dropdown
     const clientFilter = document.getElementById('clientFilter');
@@ -1435,24 +1544,38 @@
 
     const search = document.getElementById('searchInput').value.toLowerCase();
 
-    // טיפולים שבוצעו החודש (לא מבוטלים)
+    // טיפולים החודש (לסטטיסטיקות)
     const monthTreatments = treatments.filter(t => {
       if (!t.date || t.status === 'cancelled') return false;
       const [y, m] = t.date.split('-').map(Number);
       return y === viewYear && (m - 1) === viewMonth;
     });
 
-    // טיפולים מבוטלים שתאריך הטיפול שלהם הוא החודש
     const cancelledThisMonth = treatments.filter(t => {
       if (t.status !== 'cancelled' || !t.date) return false;
       const [y, m] = t.date.split('-').map(Number);
       return y === viewYear && (m - 1) === viewMonth;
     });
 
+    // טיפולים לרשימה (לפי סינון חודש נפרד)
+    const listTreatments = treatments.filter(t => {
+      if (!t.date || t.status === 'cancelled') return false;
+      const [y, m] = t.date.split('-').map(Number);
+      if (y !== viewYear) return false;
+      return selectedListMonth === null || (m - 1) === selectedListMonth;
+    });
+    const listCancelledThisMonth = treatments.filter(t => {
+      if (t.status !== 'cancelled' || !t.date) return false;
+      const [y, m] = t.date.split('-').map(Number);
+      if (y !== viewYear) return false;
+      return selectedListMonth === null || (m - 1) === selectedListMonth;
+    });
+    const allListTreatments = [...listTreatments, ...listCancelledThisMonth];
+
     const allMonthTreatments = [...monthTreatments, ...cancelledThisMonth];
 
-    // Filter by search + status + client
-    let filtered = allMonthTreatments.filter(t => {
+    // Filter by search + status + client (use allListTreatments for display)
+    let filtered = allListTreatments.filter(t => {
       const c = clients.find(x => String(x.id) === String(t.clientId));
       if (!c) return false;
       const matchSearch = c.name.toLowerCase().includes(search) || (c.phone || '').includes(search);
@@ -1484,7 +1607,7 @@
         const isCancelled = t.status === 'cancelled';
         const isCancelledPaid = isCancelled && (t.cancelPaid || t.payDate);
         return `
-        <tr style="${isCancelled ? 'background:#fff8f5;opacity:0.85;border-right:3px solid #e65100;' : ''}">
+        <tr style="${isCancelled ? 'background:rgba(220,53,69,0.06);opacity:0.85;border-right:3px solid #e65100;' : ''}">
           <td>
             <div class="client-name" style="${isCancelled ? 'text-decoration:line-through;color:var(--muted);' : ''}">${c.name}</div>
             ${c.phone ? `<div class="client-phone">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : ''}
@@ -1531,7 +1654,7 @@
                   ${t.status === 'paid'
                     ? `<span style="background:var(--green-light);color:var(--green);padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;">✅ שולם</span>`
                     : t.status === 'cancelled'
-                    ? `<span style="background:#fff3e0;color:#e65100;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;">${t.cancelPaid ? '🚫 בוטל+שולם' : '🚫 בוטל'}</span>`
+                    ? `<span style="background:rgba(230,81,0,0.15);color:#c0392b;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;">${t.cancelPaid ? '🚫 בוטל+שולם' : '🚫 בוטל'}</span>`
                     : `<span style="background:var(--red-light);color:var(--red);padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;">⚠️ לא שולם</span>`
                   }
                 </div>
@@ -1549,8 +1672,12 @@
 
     // Stats
     document.getElementById('stat-total').textContent = allMonthTreatments.filter(t => t.status !== 'cancelled').length;
-    document.getElementById('stat-paid').textContent = allMonthTreatments.filter(t => t.status === 'paid').length;
-    document.getElementById('stat-unpaid').textContent = allMonthTreatments.filter(t => t.status === 'unpaid').length;
+    // טיפולים השנה
+    const yearTotalTreatments = treatments.filter(t => t.date && t.date.startsWith(viewYear + '') && t.status !== 'cancelled').length;
+    document.getElementById('stat-year-total').textContent = yearTotalTreatments;
+    // חוב פתוח — כל הטיפולים הלא שולמו בכל הזמנים
+    const totalUnpaidAll = treatments.filter(t => t.status === 'unpaid').length;
+    document.getElementById('stat-unpaid').textContent = totalUnpaidAll;
 
     // הכנסות לפי תאריך תשלום
     const paidThisMonth = treatments.filter(t => {
@@ -1572,6 +1699,13 @@
     const yearTreatments = treatments.filter(t => t.date && t.date.startsWith(viewYear + ''));
     const yearRevenue = paidThisYear.reduce((sum, t) => sum + (t.amount || 0), 0);
     document.getElementById('stat-revenue-year').textContent = '₪' + yearRevenue.toLocaleString();
+    // ממוצע חודשי לפי חודשים עם הכנסה
+    const monthsWithRevenue = new Set(
+      treatments.filter(t => t.status === 'paid' && t.payDate && t.payDate.startsWith(viewYear + ''))
+        .map(t => t.payDate.substring(0,7))
+    ).size;
+    const avgMonth = monthsWithRevenue > 0 ? Math.round(yearRevenue / monthsWithRevenue) : 0;
+    document.getElementById('stat-avg-month').textContent = '₪' + avgMonth.toLocaleString();
     const statYearEl = document.getElementById('stat-year-treatments');
     if (statYearEl) statYearEl.textContent = yearTreatments.length + ' טיפולים השנה';
   }
@@ -1709,14 +1843,14 @@
       const totalPaid = clientTreatments.filter(t => t.status === 'paid').reduce((s,t) => s + (t.amount||0), 0);
       const unpaidCount = clientTreatments.filter(t => t.status === 'unpaid').length;
       return `
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:10px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='var(--shadow-lg)'" onmouseout="this.style.boxShadow='none'">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:10px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='var(--shadow-lg)'" onmouseout="this.style.boxShadow='none'">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div style="min-width:0;">
             <div style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
             ${c.phone ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : '<div style="font-size:12px;color:var(--muted);margin-top:2px;">אין טלפון</div>'}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${c.tz}</div>` : ''}
               <div style="margin-top:4px;display:flex;align-items:center;gap:6px;">
                 ${c.active === 'inactive'
-                  ? '<span style="background:#f5f5f5;color:#9e9e9e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">⏸️ לא פעיל</span>'
+                  ? '<span style="background:var(--surface2);color:var(--muted);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">⏸️ לא פעיל</span>'
                   : '<span style="background:var(--green-light);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">✅ פעיל</span>'
                     + (c.scheduleDay !== undefined ? '<span style="font-size:11px;color:var(--muted);margin-right:4px;">יום ' + ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][c.scheduleDay] + ' ' + (c.scheduleTime || '') + '</span>' : '')
                 }
@@ -1976,7 +2110,7 @@
       <div class="pm-treatment-row" id="pmrow-${t.id}" onclick="togglePaymentTreatment('${t.id}', ${t.status === 'cancelled' ? (t.cancelAmount || 0) : (t.amount || 0)})">
         <div class="pm-checkbox" id="pmcheck-${t.id}"></div>
         <div style="flex:1;">
-          <div style="font-weight:700;font-size:14px;">${formatDate(t.date)} ${t.status === 'cancelled' ? '<span style="font-size:11px;color:#e65100;font-weight:700;">🚫 בוטל</span>' : ''}</div>
+          <div style="font-weight:700;font-size:14px;">${formatDate(t.date)} ${t.status === 'cancelled' ? '<span style="font-size:11px;color:#c0392b;font-weight:700;">🚫 בוטל</span>' : ''}</div>
           ${t.notes ? `<div style="font-size:12px;color:var(--muted);">${t.notes}</div>` : ''}
         </div>
         <div style="font-weight:800;font-size:15px;">₪${(t.status === 'cancelled' ? (t.cancelAmount||0) : (t.amount||0)).toLocaleString()}</div>
@@ -2123,20 +2257,20 @@
                 <span style="color:var(--text);">${yts.filter(t => t.status !== 'cancelled').length} טיפולים</span>
                 <span style="color:var(--green);">₪${yPaid.toLocaleString()} שולם</span>
                 ${yUnpaid > 0 ? `<span style="color:var(--red);">${yUnpaid} לא שולמו</span>` : ''}
-                ${yts.filter(t => t.status === 'cancelled').length > 0 ? `<span style="color:#e65100;">${yts.filter(t => t.status === 'cancelled').length} בוטלו</span>` : ''}
+                ${yts.filter(t => t.status === 'cancelled').length > 0 ? `<span style="color:#c0392b;">${yts.filter(t => t.status === 'cancelled').length} בוטלו</span>` : ''}
               </span>
             </div>`;
         for (const t of yts) {
           const isCancelled = t.status === 'cancelled';
         const isCancelledPaid = isCancelled && (t.cancelPaid || t.payDate);
           html += `
-            <div class="ph-row" style="grid-template-columns:1fr auto;${isCancelled ? 'opacity:0.7;background:#fff8f5;' : ''}">
+            <div class="ph-row" style="grid-template-columns:1fr auto;${isCancelled ? 'opacity:0.7;background:rgba(220,53,69,0.06);' : ''}">
               <div>
                 <div style="font-weight:600;color:${isCancelled ? 'var(--muted)' : 'var(--text)'};${isCancelled ? 'text-decoration:line-through;' : ''}">${formatDate(t.date)}</div>
 
               </div>
               <div>${isCancelled
-                ? `<span style="background:#fff3e0;color:#e65100;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${t.cancelPaid ? '🚫 בוטל+שולם' : '🚫 בוטל'}</span>`
+                ? `<span style="background:rgba(230,81,0,0.15);color:#c0392b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${t.cancelPaid ? '🚫 בוטל+שולם' : '🚫 בוטל'}</span>`
                 : t.status === 'paid'
                 ? '<span style="background:var(--green-light);color:var(--green);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✅ שולם</span>'
                 : '<span style="background:var(--red-light);color:var(--red);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">⚠️ לא שולם</span>'
@@ -2176,13 +2310,13 @@
 
         html += `
           <div style="border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px;">
-            <div style="background:#f0eeff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+            <div style="background:rgba(124,110,247,0.15);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
               <div>
                 <div style="font-weight:800;font-size:15px;">💳 ₪${(p.total||0).toLocaleString()}</div>
                 <div style="font-size:12px;color:var(--muted);">${p.date ? formatDate(p.date) : '—'}${p.note ? ' · ' + p.note : ''}</div>
               </div>
               <div style="display:flex;align-items:center;gap:10px;">
-                <div style="font-size:12px;color:#7c6ef7;font-weight:700;">${(p.treatmentIds||[]).length} טיפולים</div>
+                <div style="font-size:12px;color:var(--purple);font-weight:700;">${(p.treatmentIds||[]).length} טיפולים</div>
                 <button onclick="showReceiptText('${p.id}')" title="הפק טקסט קבלה" style="background:none;border:1px solid #7c6ef7;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:14px;">🧾</button>
                 <button onclick="editPayment('${p.id}')" title="עריכת תשלום" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:14px;">✏️</button>
               </div>
@@ -2205,7 +2339,7 @@
 
     const overlay = document.createElement('div');
     overlay.id = 'edit-payment-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(26,24,20,0.6);backdrop-filter:blur(4px);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,30,70,0.65);backdrop-filter:blur(4px);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px;';
 
     const tRows = unpaidOrInPayment.map(t => {
       const checked = (p.treatmentIds || []).includes(t.id);
@@ -2237,9 +2371,9 @@
           <div id="epm-list">${tRows}</div>
         </div>
         <div style="padding:16px 20px;border-top:1px solid var(--border);flex-shrink:0;">
-          <div style="display:flex;justify-content:space-between;align-items:center;background:#f0eeff;border-radius:10px;padding:10px 16px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(124,110,247,0.15);border-radius:10px;padding:10px 16px;margin-bottom:12px;">
             <span style="font-size:13px;font-weight:600;">סה"כ</span>
-            <span style="font-size:1.2rem;font-weight:800;color:#7c6ef7;" id="epm-total">₪${(p.total||0).toLocaleString()}</span>
+            <span style="font-size:1.2rem;font-weight:800;color:var(--purple);" id="epm-total">₪${(p.total||0).toLocaleString()}</span>
           </div>
           <button onclick="saveEditedPayment('${paymentId}')" style="width:100%;padding:14px;background:#7c6ef7;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">
             ✅ שמור שינויים
@@ -2330,14 +2464,14 @@
 
     const overlay = document.createElement('div');
     overlay.id = 'receipt-text-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(26,24,20,0.6);backdrop-filter:blur(4px);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,30,70,0.65);backdrop-filter:blur(4px);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.innerHTML = `
       <div style="background:var(--surface);border-radius:20px;width:100%;max-width:420px;padding:28px;box-shadow:var(--shadow-lg);direction:rtl;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
           <div style="font-size:1.1rem;font-weight:800;">🧾 טקסט לקבלה</div>
           <button onclick="document.getElementById('receipt-text-overlay').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
         </div>
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;font-size:14px;line-height:1.8;white-space:pre-line;margin-bottom:16px;">${text}</div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;font-size:14px;line-height:1.8;white-space:pre-line;margin-bottom:16px;">${text}</div>
         <button onclick="copyReceiptText(\`${text.replace(/`/g,'\`')}\`)" style="width:100%;padding:12px;background:#7c6ef7;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;" id="copy-receipt-btn">
           📋 העתק טקסט
         </button>
@@ -2752,7 +2886,41 @@
     render();
   }
 
+  function setNavTab(tab) {
+    document.querySelectorAll('.bottom-nav-btn').forEach(b => {
+      b.classList.remove('active','green','purple','pink');
+      b.style.color = '';
+    });
+    const map = {home:'active',new:'green',pay:'purple',cal:'pink',clients:'active'};
+    const el = document.getElementById('nav-' + tab);
+    if (el) el.classList.add(map[tab] || 'active');
+  }
+
   loadFromSheets();
 </script>
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="bottom-nav-btn active" id="nav-home" onclick="setNavTab('home')">
+    <span class="nav-icon">🏠</span>
+    <span>ראשי</span>
+  </button>
+  <button class="bottom-nav-btn green" id="nav-new" onclick="openMeetingModal();setNavTab('new')">
+    <span class="nav-icon">➕</span>
+    <span>טיפול חדש</span>
+  </button>
+  <button class="bottom-nav-btn purple" id="nav-pay" onclick="openPaymentModal();setNavTab('pay')">
+    <span class="nav-icon">💳</span>
+    <span>תשלום</span>
+  </button>
+  <button class="bottom-nav-btn pink" id="nav-cal" onclick="openWeeklyCalendar();setNavTab('cal')">
+    <span class="nav-icon">🗓️</span>
+    <span>לוח</span>
+  </button>
+  <button class="bottom-nav-btn" id="nav-clients" onclick="openClientsPanel();setNavTab('clients')">
+    <span class="nav-icon">👥</span>
+    <span>לקוחות</span>
+  </button>
+</nav>
+
 </body>
 </html>
