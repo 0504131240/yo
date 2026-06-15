@@ -31,14 +31,6 @@ npx serve .
    והחלף את הערכים בערכים שקיבלת מ-Firebase.
 5. שמור, פתח את `index.html` בדפדפן - האפליקציה תתחבר ל-Firestore ותתחיל לשמור נתונים במסמך `appData/clientsManagement`.
 
-## העברת נתונים קיימים מ-Google Sheets
-
-האפליקציה כוללת מעבר אוטומטי **חד-פעמי**: בפעם הראשונה שהיא נפתחת ומגלה שהמסמך ב-Firestore עדיין לא קיים, היא תמשוך את הנתונים הקיימים מהגיליון הישן (Google Sheets) ותשמור אותם ב-Firestore. אין צורך בפעולה ידנית - מספיק לפתוח את האתר המעודכן פעם אחת.
-
-⚠️ **אחרי שההעברה הצליחה** (מופיעה הודעת "הנתונים יובאו מהמערכת הקודמת"), מומלץ:
-1. לבטל/למחוק את ה-Apps Script Web App הישן (בקובץ הגיליון: Extensions → Apps Script → Deploy → Manage deployments → Archive).
-2. להסיר מ-`index.html` את הקבוע `LEGACY_SHEETS_URL` ואת הפונקציה `migrateFromLegacySheets`, כדי לא להשאיר בקוד כתובת שהייתה חשופה בעבר.
-
 ## ⚠️ הגדרת אבטחה ב-Firebase (חשוב!)
 
 מפתח ה-API של Firebase מוגדר בקוד (`firebaseConfig` ב-`index.html`). זה תקין ומקובל עבור אפליקציות צד-לקוח - **אבל** האבטחה האמיתית של הנתונים נקבעת ע"י **Firestore Security Rules**, שמוגדרים בקונסולת Firebase ולא בקוד הזה.
