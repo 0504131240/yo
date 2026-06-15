@@ -1,9 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="אפליקציית ניהול לקוחות, טיפולים ותשלומים">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
 <title>ניהול לקוחות</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
@@ -628,7 +629,7 @@ body { padding-bottom: 70px; }
   </div>
   <div style="display:flex;align-items:center;gap:8px;">
     <span id="sync-status" style="font-size:12px;color:var(--muted);transition:opacity 0.5s;white-space:nowrap;"></span>
-    <button onclick="loadFromSheets()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;" title="רענן">🔄</button>
+    <button onclick="load()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;" title="רענן">🔄</button>
     <!-- Desktop only buttons -->
     <div class="desktop-nav-btns" style="display:flex;gap:8px;">
       <button class="btn-add" style="background:linear-gradient(135deg,#34c97b,#28a062);box-shadow:0 4px 12px rgba(52,201,123,0.25);padding:9px 16px;font-size:13px;" onclick="openMeetingModal()">➕ טיפול חדש</button>
@@ -1231,10 +1232,53 @@ body { padding-bottom: 70px; }
   // clients: [{id, name, phone, tz}]
   // treatments: [{id, clientId, date, amount, status, paidAmount, notes}]
 
+  // ---- הגנת XSS: escaping לטקסט חופשי שמוזרק ל-innerHTML ----
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // ---- נרמול תאריכים לפורמט YYYY-MM-DD ----
+  function normalizeDate(d) {
+    if (!d) return '';
+    const s = String(d);
+    if (s.match(/^\d{4}-\d{2}-\d{2}$/)) return s;
+    const p = new Date(s);
+    if (!isNaN(p)) return p.getFullYear() + '-' + String(p.getMonth()+1).padStart(2,'0') + '-' + String(p.getDate()).padStart(2,'0');
+    return '';
+  }
+
+  // ---- אימות קלט ----
+  function isValidPhone(phone) {
+    const digits = phone.replace(/\D/g, '');
+    return /^0\d{8,9}$/.test(digits);
+  }
+
+  // בדיקת ספרת ביקורת לתעודת זהות ישראלית
+  function isValidIsraeliId(id) {
+    const digits = id.replace(/\D/g, '');
+    if (!/^\d{1,9}$/.test(digits)) return false;
+    const padded = digits.padStart(9, '0');
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      let digit = Number(padded[i]) * ((i % 2) + 1);
+      if (digit > 9) digit -= 9;
+      sum += digit;
+    }
+    return sum % 10 === 0;
+  }
+
   // ================================================================
-  //  הגדרות Google Sheets – הדביקי כאן את כתובת ה-Web App שלך
+  //  הגדרות Firebase – יש להחליף בפרטי הפרויקט שלך (ראו README)
   // ================================================================
-  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz9VbId9ZGULMY4_f7RDa2wQc825j4imfZjRniCIgo2sCGohWg7GkAQxMu4T3-gTNIR/exec';
+  const firebaseConfig = {
+    apiKey: "AIzaSyBSg3joV__1dHQRjyxUtm1dj3iFSQAyeJ4",
+    authDomain: "yossi20362.firebaseapp.com",
+    projectId: "yossi20362",
+    storageBucket: "yossi20362.firebasestorage.app",
+    messagingSenderId: "73962288632",
+    appId: "1:73962288632:web:4ef5d552c37ab47f9c120d"
+  };
+  // המסמך ב-Firestore בו נשמרים כל נתוני האפליקציה
+  const FIRESTORE_COLLECTION = 'appData';
+  const FIRESTORE_DOC_ID = 'clientsManagement';
   // ================================================================
 
   let clients = [];
@@ -1246,6 +1290,7 @@ body { padding-bottom: 70px; }
   let editingTreatmentId = null;
   let isSyncing = false;
   let isLoaded = false; // מונע שמירה לפני טעינה
+  let saveTimer = null;
 
   const now = new Date();
   let viewYear = now.getFullYear();
@@ -1254,7 +1299,7 @@ body { padding-bottom: 70px; }
 
   const hebrewMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
-  // ---- סנכרון עם Google Sheets ----
+  // ---- סנכרון עם Firebase Firestore ----
   function showSyncStatus(msg, color) {
     let el = document.getElementById('sync-status');
     if (!el) return;
@@ -1266,116 +1311,116 @@ body { padding-bottom: 70px; }
     }
   }
 
-  async function loadFromSheets() {
-    if (!SHEETS_URL || SHEETS_URL.includes('הכנס')) {
-      showSyncStatus('⚠️ טרם הוגדר חיבור ל-Google Sheets', 'var(--yellow)');
+  let _fb = null;
+  async function fbInit() {
+    if (_fb) return _fb;
+    const appMod = await import("https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js");
+    const fsMod = await import("https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js");
+    const app = appMod.initializeApp(firebaseConfig);
+    const db = fsMod.getFirestore(app);
+    _fb = { db, doc: fsMod.doc, getDoc: fsMod.getDoc, setDoc: fsMod.setDoc };
+    return _fb;
+  }
+
+  function isFirebaseConfigured() {
+    return !!firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR_');
+  }
+
+  function saveLocal() {
+    try {
+      localStorage.setItem('cm-clients', JSON.stringify(clients));
+      localStorage.setItem('cm-treatments', JSON.stringify(treatments));
+      localStorage.setItem('cm-payments', JSON.stringify(payments));
+    } catch (e) {}
+  }
+
+  function loadLocal() {
+    try {
+      clients = JSON.parse(localStorage.getItem('cm-clients') || '[]');
+      treatments = JSON.parse(localStorage.getItem('cm-treatments') || '[]');
+      payments = JSON.parse(localStorage.getItem('cm-payments') || '[]');
+    } catch (e) {}
+  }
+
+  function normalizeLoadedData(data) {
+    payments = (data.payments || []).map(p => ({ ...p, date: normalizeDate(p.date) }));
+    clients = (data.clients || []).map(c => ({
+      ...c,
+      phone: c.phone ? (String(c.phone).startsWith('0') ? String(c.phone) : '0' + String(c.phone)) : '',
+      tz: c.tz ? String(c.tz) : '',
+    }));
+    treatments = (data.treatments || []).map(t => ({
+      ...t,
+      id: String(t.id),
+      clientId: Number(t.clientId),
+      date: normalizeDate(t.date),
+      payDate: normalizeDate(t.payDate),
+      cancelDate: normalizeDate(t.cancelDate),
+      cancelPayDate: normalizeDate(t.cancelPayDate),
+      status: t.status === 'partial' ? 'unpaid' : t.status,
+    }));
+  }
+
+  async function load() {
+    if (!isFirebaseConfigured()) {
+      showSyncStatus('⚠️ טרם הוגדר חיבור ל-Firebase', 'var(--yellow)');
+      loadLocal();
+      isLoaded = true;
+      render();
       return;
     }
     showSyncStatus('🔄 טוען נתונים...', 'var(--muted)');
     try {
-      const res = await fetch(SHEETS_URL + '?action=load');
-      const text = await res.text();
-      const data = JSON.parse(text);
-      if (data.error) throw new Error(data.error);
-      payments = (data.payments || []).map(p => {
-        let date = String(p.date || '');
-        if (date && !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const parsed = new Date(date);
-          if (!isNaN(parsed)) {
-            date = parsed.getFullYear() + '-' + String(parsed.getMonth()+1).padStart(2,'0') + '-' + String(parsed.getDate()).padStart(2,'0');
-          } else date = '';
-        }
-        return { ...p, date };
-      });
-      clients = (data.clients || []).map(c => ({
-        ...c,
-        phone: c.phone ? (String(c.phone).startsWith('0') ? String(c.phone) : '0' + String(c.phone)) : '',
-        tz: c.tz ? String(c.tz) : '',
-      }));
-      treatments = (data.treatments || []).map(t => {
-        t = { ...t, clientId: Number(t.clientId) };
-        let date = String(t.date || '');
-        if (date && !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const parsed = new Date(date);
-          if (!isNaN(parsed)) {
-            const y = parsed.getFullYear();
-            const mo = String(parsed.getMonth() + 1).padStart(2, '0');
-            const d = String(parsed.getDate()).padStart(2, '0');
-            date = y + '-' + mo + '-' + d;
-          } else { date = ''; }
-        }
-        let cancelDate = String(t.cancelDate || '');
-        if (cancelDate && !cancelDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const parsed = new Date(cancelDate);
-          if (!isNaN(parsed)) {
-            cancelDate = parsed.getFullYear() + '-' + String(parsed.getMonth()+1).padStart(2,'0') + '-' + String(parsed.getDate()).padStart(2,'0');
-          } else cancelDate = '';
-        }
-        let payDate = String(t.payDate || '');
-        if (payDate && !payDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const pp = new Date(payDate);
-          if (!isNaN(pp)) { payDate = pp.getFullYear() + '-' + String(pp.getMonth()+1).padStart(2,'0') + '-' + String(pp.getDate()).padStart(2,'0'); }
-          else payDate = '';
-        }
-        return { ...t, id: String(t.id), date, payDate, cancelDate, status: t.status === 'partial' ? 'unpaid' : t.status };
-      });
+      const { db, doc, getDoc } = await fbInit();
+      const snap = await getDoc(doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID));
+      if (snap.exists()) {
+        normalizeLoadedData(snap.data());
+        isLoaded = true;
+        showSyncStatus('✅ נטען בהצלחה', 'var(--green)');
+        saveLocal();
+        render();
+        return;
+      }
+      // המסמך עדיין לא קיים ב-Firestore - אתחול מסמך נתונים ריק חדש
+      normalizeLoadedData({});
       isLoaded = true;
-      showSyncStatus('✅ נטען בהצלחה', 'var(--green)');
+      saveLocal();
+      await syncToFirestore();
+      showSyncStatus('✅ נוצר מסמך נתונים חדש', 'var(--green)');
       render();
     } catch (err) {
-      showSyncStatus('❌ שגיאת טעינה: ' + err.message, 'var(--red)');
+      console.warn('load failed:', err);
+      loadLocal();
+      isLoaded = true;
+      showSyncStatus('⚠️ עובד מקומית (שגיאת טעינה)', 'var(--red)');
+      render();
     }
   }
 
-  async function save() {
-    if (!SHEETS_URL || SHEETS_URL.includes('הכנס')) return;
-    if (isSyncing) return;
-    // אל תשמור לפני שהטעינה הושלמה
+  // שמירה: מיידי ל-localStorage, ומאוחדת (debounced) ל-Firestore
+  function save() {
     if (!isLoaded) { console.log('שמירה בוטלה — טרם נטען'); return; }
-    // אל תשמור אם הכל ריק
-    if (clients.length === 0) {
-      console.log('שמירה בוטלה — אין לקוחות');
-      return;
-    }
+    saveLocal();
+    if (!isFirebaseConfigured()) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(syncToFirestore, 400);
+  }
+
+  async function syncToFirestore() {
+    if (isSyncing) { saveTimer = setTimeout(syncToFirestore, 400); return; }
     isSyncing = true;
     showSyncStatus('💾 שומר...', 'var(--muted)');
     try {
-      // נרמל תאריכים לפורמט YYYY-MM-DD לפני שמירה
-      function normDate(d) {
-        if (!d) return '';
-        const s = String(d);
-        if (s.match(/^\d{4}-\d{2}-\d{2}$/)) return s;
-        const p = new Date(s);
-        if (!isNaN(p)) return p.getFullYear() + '-' + String(p.getMonth()+1).padStart(2,'0') + '-' + String(p.getDate()).padStart(2,'0');
-        return '';
-      }
       const cleanTreatments = treatments.map(t => ({
         ...t,
-        date: normDate(t.date),
-        payDate: normDate(t.payDate),
-        cancelDate: normDate(t.cancelDate),
-        cancelPayDate: normDate(t.cancelPayDate),
+        date: normalizeDate(t.date),
+        payDate: normalizeDate(t.payDate),
+        cancelDate: normalizeDate(t.cancelDate),
+        cancelPayDate: normalizeDate(t.cancelPayDate),
       }));
-      const cleanPayments = payments.map(p => ({ ...p, date: normDate(p.date) }));
-      const payload = JSON.stringify({ action: 'save', clients, treatments: cleanTreatments, payments: cleanPayments });
-      // נסה POST קודם (יציב יותר לנתונים גדולים)
-      let res, text, result;
-      try {
-        res = await fetch(SHEETS_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: payload,
-        });
-        text = await res.text();
-        result = JSON.parse(text);
-      } catch (postErr) {
-        // פולבק ל-GET אם POST נכשל
-        const data = encodeURIComponent(payload);
-        res = await fetch(SHEETS_URL + '?action=save&data=' + data);
-        text = await res.text();
-        result = JSON.parse(text);
-      }
-      if (result.error) throw new Error(result.error);
+      const cleanPayments = payments.map(p => ({ ...p, date: normalizeDate(p.date) }));
+      const { db, doc, setDoc } = await fbInit();
+      await setDoc(doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID), { clients, treatments: cleanTreatments, payments: cleanPayments });
       showSyncStatus('✅ נשמר', 'var(--green)');
     } catch (err) {
       showSyncStatus('❌ שגיאת שמירה: ' + err.message, 'var(--red)');
@@ -1540,7 +1585,7 @@ body { padding-bottom: 70px; }
     const currentVal = clientFilter.value;
     const sortedClients = [...clients].sort((a,b) => a.name.localeCompare(b.name, 'he'));
     clientFilter.innerHTML = '<option value="">👤 כל הלקוחות</option>' +
-      sortedClients.map(c => `<option value="${c.id}" ${String(c.id) === String(selectedClientFilter) ? 'selected' : ''}>${c.name}</option>`).join('');
+      sortedClients.map(c => `<option value="${c.id}" ${String(c.id) === String(selectedClientFilter) ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
 
     const search = document.getElementById('searchInput').value.toLowerCase();
 
@@ -1609,14 +1654,14 @@ body { padding-bottom: 70px; }
         return `
         <tr style="${isCancelled ? 'background:rgba(220,53,69,0.06);opacity:0.85;border-right:3px solid #e65100;' : ''}">
           <td>
-            <div class="client-name" style="${isCancelled ? 'text-decoration:line-through;color:var(--muted);' : ''}">${c.name}</div>
-            ${c.phone ? `<div class="client-phone">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : ''}
+            <div class="client-name" style="${isCancelled ? 'text-decoration:line-through;color:var(--muted);' : ''}">${esc(c.name)}</div>
+            ${c.phone ? `<div class="client-phone">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${esc(c.phone)}</div>` : ''}
           </td>
           <td>
             <div class="meeting-date" style="${isCancelled ? 'text-decoration:line-through;color:var(--muted);' : ''}">${formatDate(t.date)}</div>
 
           </td>
-          <td><div class="meeting-notes">${isCancelled ? (t.cancelNote || '—') : (t.notes || '—')}</div></td>
+          <td><div class="meeting-notes">${esc(isCancelled ? (t.cancelNote || '—') : (t.notes || '—'))}</div></td>
           <td><div class="amount">${isCancelled ? (t.cancelAmount ? '₪' + t.cancelAmount.toLocaleString() : '—') : (t.amount ? '₪' + t.amount.toLocaleString() : '—')}</div></td>
           <td>${statusBadge(t)}</td>
           <td><div class="meeting-date" style="font-size:12px;">${t.payDate ? formatDate(t.payDate) : '—'}</div></td>
@@ -1647,7 +1692,7 @@ body { padding-bottom: 70px; }
             <div class="t-card">
               <div class="t-card-row1">
                 <div>
-                  <div class="t-card-name">${c.name}</div>
+                  <div class="t-card-name">${esc(c.name)}</div>
                   <div class="t-card-date" style="margin-top:3px;">📅 ${formatDate(t.date)}</div>
                 </div>
                 <div>
@@ -1659,7 +1704,7 @@ body { padding-bottom: 70px; }
                   }
                 </div>
               </div>
-              ${t.notes ? `<div style="font-size:12px;color:var(--muted);padding:4px 8px;background:var(--bg);border-radius:8px;">${t.notes}</div>` : ''}
+              ${t.notes ? `<div style="font-size:12px;color:var(--muted);padding:4px 8px;background:var(--bg);border-radius:8px;">${esc(t.notes)}</div>` : ''}
               <div class="t-card-actions">
                 <button class="action-btn" onclick="openTreatmentEdit('${t.id}')" title="עריכה">✏️</button>
                 ${t.status !== 'cancelled' && t.date && new Date(t.date) > new Date() ? `<button class="action-btn" onclick="openCancelModal('${t.id}')" title="ביטול טיפול" style="font-size:13px;">🚫</button>` : ''}
@@ -1770,27 +1815,35 @@ body { padding-bottom: 70px; }
     const name = document.getElementById('f-name').value.trim();
     if (!name) { alert('אנא הכנס שם לקוח'); return; }
 
+    const phone = document.getElementById('f-phone').value.trim();
+    if (phone && !isValidPhone(phone)) { alert('מספר טלפון לא תקין'); return; }
+
+    const tz = document.getElementById('f-tz').value.trim();
+    if (tz && !isValidIsraeliId(tz)) { alert('מספר ת.ז. לא תקין'); return; }
+
+    const weeklyAmount = Math.max(0, parseFloat(document.getElementById('f-weekly-amount').value) || 350);
+
     if (editingClientId !== null) {
       clients = clients.map(c => c.id === editingClientId
         ? { ...c, name,
-          phone: document.getElementById('f-phone').value.trim(),
-          tz: document.getElementById('f-tz').value.trim(),
+          phone,
+          tz,
           active: document.getElementById('f-active').value,
           scheduleDay: parseInt(document.getElementById('f-day').value),
           scheduleTime: document.getElementById('f-time').value,
-          weeklyAmount: parseFloat(document.getElementById('f-weekly-amount').value) || 350,
+          weeklyAmount,
           startDate: document.getElementById('f-start-date').value || '',
         }
         : c);
     } else {
       clients.push({
       id: Date.now(), name,
-      phone: document.getElementById('f-phone').value.trim(),
-      tz: document.getElementById('f-tz').value.trim(),
+      phone,
+      tz,
       active: document.getElementById('f-active').value,
       scheduleDay: parseInt(document.getElementById('f-day').value),
       scheduleTime: document.getElementById('f-time').value,
-      weeklyAmount: parseFloat(document.getElementById('f-weekly-amount').value) || 350,
+      weeklyAmount,
       startDate: document.getElementById('f-start-date').value || '',
     });
     }
@@ -1846,13 +1899,13 @@ body { padding-bottom: 70px; }
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:10px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='var(--shadow-lg)'" onmouseout="this.style.boxShadow='none'">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div style="min-width:0;">
-            <div style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
-            ${c.phone ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : '<div style="font-size:12px;color:var(--muted);margin-top:2px;">אין טלפון</div>'}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${c.tz}</div>` : ''}
+            <div style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.name)}</div>
+            ${c.phone ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${esc(c.phone)}</div>` : '<div style="font-size:12px;color:var(--muted);margin-top:2px;">אין טלפון</div>'}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${esc(c.tz)}</div>` : ''}
               <div style="margin-top:4px;display:flex;align-items:center;gap:6px;">
                 ${c.active === 'inactive'
                   ? '<span style="background:var(--surface2);color:var(--muted);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">⏸️ לא פעיל</span>'
                   : '<span style="background:var(--green-light);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">✅ פעיל</span>'
-                    + (c.scheduleDay !== undefined ? '<span style="font-size:11px;color:var(--muted);margin-right:4px;">יום ' + ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][c.scheduleDay] + ' ' + (c.scheduleTime || '') + '</span>' : '')
+                    + (c.scheduleDay !== undefined ? '<span style="font-size:11px;color:var(--muted);margin-right:4px;">יום ' + ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][c.scheduleDay] + ' ' + esc(c.scheduleTime || '') + '</span>' : '')
                 }
               </div>
           </div>
@@ -1993,9 +2046,9 @@ body { padding-bottom: 70px; }
         if (c.startDate && dateStr < c.startDate) return '';
         return `<div class="cal-slot ${isCancelled ? 'cancelled-slot' : 'active-slot'} ${isPast && !isCancelled ? 'past-slot' : ''}"
           onclick="${isCancelled ? '' : `openCalCancel('${c.id}','${dateStr}')`}"
-          title="${c.name}">
-          <div style="font-weight:700;font-size:11px;">${c.scheduleTime || ''}</div>
-          <div style="font-size:12px;">${c.name}</div>
+          title="${esc(c.name)}">
+          <div style="font-weight:700;font-size:11px;">${esc(c.scheduleTime || '')}</div>
+          <div style="font-size:12px;">${esc(c.name)}</div>
           ${isCancelled ? '<div style="font-size:10px;">בוטל</div>' : ''}
         </div>`;
       }).join('');
@@ -2111,7 +2164,7 @@ body { padding-bottom: 70px; }
         <div class="pm-checkbox" id="pmcheck-${t.id}"></div>
         <div style="flex:1;">
           <div style="font-weight:700;font-size:14px;">${formatDate(t.date)} ${t.status === 'cancelled' ? '<span style="font-size:11px;color:#c0392b;font-weight:700;">🚫 בוטל</span>' : ''}</div>
-          ${t.notes ? `<div style="font-size:12px;color:var(--muted);">${t.notes}</div>` : ''}
+          ${t.notes ? `<div style="font-size:12px;color:var(--muted);">${esc(t.notes)}</div>` : ''}
         </div>
         <div style="font-weight:800;font-size:15px;">₪${(t.status === 'cancelled' ? (t.cancelAmount||0) : (t.amount||0)).toLocaleString()}</div>
       </div>
@@ -2313,7 +2366,7 @@ body { padding-bottom: 70px; }
             <div style="background:rgba(124,110,247,0.15);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
               <div>
                 <div style="font-weight:800;font-size:15px;">💳 ₪${(p.total||0).toLocaleString()}</div>
-                <div style="font-size:12px;color:var(--muted);">${p.date ? formatDate(p.date) : '—'}${p.note ? ' · ' + p.note : ''}</div>
+                <div style="font-size:12px;color:var(--muted);">${p.date ? formatDate(p.date) : '—'}${p.note ? ' · ' + esc(p.note) : ''}</div>
               </div>
               <div style="display:flex;align-items:center;gap:10px;">
                 <div style="font-size:12px;color:var(--purple);font-weight:700;">${(p.treatmentIds||[]).length} טיפולים</div>
@@ -2359,11 +2412,11 @@ body { padding-bottom: 70px; }
           </div>
           <div class="form-row" style="margin:0 0 10px;">
             <label style="font-size:13px;">תאריך תשלום</label>
-            <input type="date" id="epm-date" value="${p.date || ''}">
+            <input type="date" id="epm-date" value="${esc(p.date || '')}">
           </div>
           <div class="form-row" style="margin:0;">
             <label style="font-size:13px;">הערה</label>
-            <input type="text" id="epm-note" value="${p.note || ''}" placeholder="פרטי תשלום נוספים...">
+            <input type="text" id="epm-note" value="${esc(p.note || '')}" placeholder="פרטי תשלום נוספים...">
           </div>
         </div>
         <div style="overflow-y:auto;padding:16px 20px;flex:1;">
@@ -2544,7 +2597,7 @@ body { padding-bottom: 70px; }
       ...t,
       date: document.getElementById('f-date').value,
       payDate: document.getElementById('f-paydate').value || '',
-      amount: parseFloat(document.getElementById('f-amount').value) || 0,
+      amount: Math.max(0, parseFloat(document.getElementById('f-amount').value) || 0),
       // שמור cancelled אם הטיפול מבוטל — אל תאפשר שינוי לpaid/unpaid דרך הטופס
       status: oldT && oldT.status === 'cancelled' ? 'cancelled' : document.getElementById('f-status').value,
       paidAmount: 0,
@@ -2620,7 +2673,7 @@ body { padding-bottom: 70px; }
   function previewSeries() {
     const dates = buildSeriesDates();
     if (dates.length === 0) { alert('יש לבחור תאריך התחלה'); return; }
-    const amount = parseFloat(document.getElementById('series-amount').value) || 350;
+    const amount = Math.max(0, parseFloat(document.getElementById('series-amount').value) || 350);
 
     const listEl = document.getElementById('series-preview-list');
     listEl.innerHTML = dates.map((d, i) => `
@@ -2639,7 +2692,7 @@ body { padding-bottom: 70px; }
     if (!clientId) { alert('יש לבחור לקוח'); return; }
     const dates = buildSeriesDates();
     if (dates.length === 0) { alert('יש לבחור תאריך התחלה'); return; }
-    const amount = parseFloat(document.getElementById('series-amount').value) || 350;
+    const amount = Math.max(0, parseFloat(document.getElementById('series-amount').value) || 350);
     const seriesId = 'series' + Date.now();
 
     const newTreatments = dates.map(date => ({
@@ -2674,7 +2727,7 @@ body { padding-bottom: 70px; }
     cancellingTreatmentId = tid;
 
     document.getElementById('cancel-treatment-info').innerHTML =
-      `<div style="font-weight:700;">${c.name}</div><div style="color:var(--muted);font-size:13px;">📅 ${formatDate(t.date)}</div>`;
+      `<div style="font-weight:700;">${esc(c.name)}</div><div style="color:var(--muted);font-size:13px;">📅 ${formatDate(t.date)}</div>`;
 
     // today as default
     const today = new Date();
@@ -2699,7 +2752,7 @@ body { padding-bottom: 70px; }
     if (!t) return;
 
     const cancelDate = document.getElementById('cancel-date').value;
-    const cancelAmount = parseFloat(document.getElementById('cancel-amount').value) || 0;
+    const cancelAmount = Math.max(0, parseFloat(document.getElementById('cancel-amount').value) || 0);
     const cancelNote = document.getElementById('cancel-note').value.trim();
 
     t.status = 'cancelled';
@@ -2800,8 +2853,8 @@ body { padding-bottom: 70px; }
       <div onclick="selectClient(${c.id})" style="padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;transition:background 0.15s;"
         onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background=''">
         <div>
-          <div style="font-weight:600;font-size:14px;">${c.name}</div>
-          ${c.phone ? `<div style="font-size:12px;color:var(--muted);">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : ''}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${c.tz}</div>` : ''}
+          <div style="font-weight:600;font-size:14px;">${esc(c.name)}</div>
+          ${c.phone ? `<div style="font-size:12px;color:var(--muted);">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${esc(c.phone)}</div>` : ''}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${esc(c.tz)}</div>` : ''}
         </div>
         <span style="font-size:12px;color:var(--accent);font-weight:600;">בחר ←</span>
       </div>
@@ -2813,8 +2866,8 @@ body { padding-bottom: 70px; }
     const c = clients.find(x => x.id === id);
     document.getElementById('meeting-selected-client').innerHTML = `
       <div>
-        <div style="font-weight:700;font-size:15px;">👤 ${c.name}</div>
-        ${c.phone ? `<div style="font-size:12px;color:var(--muted);">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${c.phone}</div>` : ''}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${c.tz}</div>` : ''}
+        <div style="font-weight:700;font-size:15px;">👤 ${esc(c.name)}</div>
+        ${c.phone ? `<div style="font-size:12px;color:var(--muted);">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${esc(c.phone)}</div>` : ''}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${esc(c.tz)}</div>` : ''}
       </div>
       <span style="color:var(--green);font-size:12px;font-weight:600;">✓ נבחר</span>
     `;
@@ -2873,7 +2926,7 @@ body { padding-bottom: 70px; }
       id: 't' + Date.now() + Math.floor(Math.random()*10000),
       clientId: Number(selectedClientId),
       date,
-      amount: parseFloat(document.getElementById('mf-amount').value) || 0,
+      amount: Math.max(0, parseFloat(document.getElementById('mf-amount').value) || 0),
       status: document.getElementById('mf-status').value,
       paidAmount: 0,
       payDate: document.getElementById('mf-paydate').value || '',
@@ -2896,7 +2949,7 @@ body { padding-bottom: 70px; }
     if (el) el.classList.add(map[tab] || 'active');
   }
 
-  loadFromSheets();
+  load();
 </script>
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
