@@ -1,0 +1,19 @@
+{
+  "name": "ניהול לקוחות",
+  "short_name": "לאלי",
+  "description": "ניהול לקוחות, טיפולים ותשלומים",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f0f4fa",
+  "theme_color": "#3b7cf4",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
