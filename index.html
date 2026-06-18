@@ -6,6 +6,11 @@
 <meta name="description" content="אפליקציית ניהול לקוחות, טיפולים ותשלומים">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
 <title>ניהול לקוחות</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3b7cf4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ניהול לקוחות">
+<link rel="apple-touch-icon" href="icon.svg">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
 
@@ -1281,16 +1286,6 @@ body { padding-bottom: 70px; }
   const FIRESTORE_DOC_ID = 'clientsManagement';
   // ================================================================
 
-  // ================================================================
-  //  מערכת ישנה (Google Sheets) – לצורך העברה חד-פעמית בלבד
-  //  בפעם הראשונה שהמסמך ב-Firestore עדיין לא קיים, האפליקציה תנסה
-  //  למשוך את הנתונים הקיימים מכאן ולשמור אותם ב-Firestore.
-  //  ⚠️ אחרי שההעברה הסתיימה בהצלחה (ראו הודעת "הנתונים יובאו"),
-  //  מומלץ למחוק/לבטל את ה-Apps Script הזה ולהסיר את הקבוע הזה מהקוד.
-  // ================================================================
-  const LEGACY_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz9VbId9ZGULMY4_f7RDa2wQc825j4imfZjRniCIgo2sCGohWg7GkAQxMu4T3-gTNIR/exec';
-  // ================================================================
-
   let clients = [];
   let treatments = [];
   let payments = []; // קבוצות תשלום
@@ -1371,22 +1366,6 @@ body { padding-bottom: 70px; }
     }));
   }
 
-  // ניסיון העברה חד-פעמית של הנתונים הקיימים מהמערכת הישנה (Google Sheets)
-  async function migrateFromLegacySheets() {
-    if (!LEGACY_SHEETS_URL) return false;
-    try {
-      const res = await fetch(LEGACY_SHEETS_URL + '?action=load');
-      const text = await res.text();
-      const data = JSON.parse(text);
-      if (data.error) return false;
-      normalizeLoadedData(data);
-      return true;
-    } catch (err) {
-      console.warn('migration from legacy sheets failed:', err);
-      return false;
-    }
-  }
-
   async function load() {
     if (!isFirebaseConfigured()) {
       showSyncStatus('⚠️ טרם הוגדר חיבור ל-Firebase', 'var(--yellow)');
@@ -1407,19 +1386,12 @@ body { padding-bottom: 70px; }
         render();
         return;
       }
-      // המסמך עדיין לא קיים ב-Firestore - ננסה למשוך נתונים קיימים מהמערכת הישנה
-      const migrated = await migrateFromLegacySheets();
-      if (!migrated) {
-        normalizeLoadedData({});
-        isLoaded = true;
-        showSyncStatus('⚠️ לא ניתן לטעון נתונים, ינסה שוב בפעם הבאה', 'var(--yellow)');
-        render();
-        return;
-      }
+      // המסמך עדיין לא קיים ב-Firestore - אתחול מסמך נתונים ריק חדש
+      normalizeLoadedData({});
       isLoaded = true;
       saveLocal();
       await syncToFirestore();
-      showSyncStatus('✅ הנתונים יובאו מהמערכת הקודמת', 'var(--green)');
+      showSyncStatus('✅ נוצר מסמך נתונים חדש', 'var(--green)');
       render();
     } catch (err) {
       console.warn('load failed:', err);
@@ -3007,6 +2979,7 @@ body { padding-bottom: 70px; }
     <span>לקוחות</span>
   </button>
 </nav>
+<script>if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});</script>
 
 </body>
 </html>
