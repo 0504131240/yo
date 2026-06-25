@@ -1263,10 +1263,23 @@ body { padding-bottom: 70px; }
       <div style="display:flex;gap:8px;">
         <button id="ph-tab-treatments" onclick="switchPhTab('treatments')" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:#7c6ef7;color:white;">📋 טיפולים</button>
         <button id="ph-tab-payments" onclick="switchPhTab('payments')" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:var(--border);color:var(--text);">💳 תשלומים</button>
-        <button id="ph-tab-documents" onclick="switchPhTab('documents')" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:var(--border);color:var(--text);">📄 מסמכים</button>
       </div>
     </div>
     <div class="ph-body" id="ph-body"></div>
+  </div>
+</div>
+
+<!-- DOCUMENTS MODAL -->
+<div id="docsOverlay" onclick="closeDocsOnOverlay(event)" style="position:fixed;inset:0;background:rgba(15,30,70,0.55);backdrop-filter:blur(6px);z-index:250;display:none;align-items:flex-end;justify-content:center;">
+  <div id="docsModal" style="background:var(--surface);width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;border-radius:24px 24px 0 0;box-shadow:0 -8px 40px rgba(30,50,100,0.18);animation:slideUp 0.3s ease;">
+    <div style="padding:20px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div id="docs-title" style="font-size:1.2rem;font-weight:800;">📄 מסמכים</div>
+        <button onclick="closeDocsModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);line-height:1;">✕</button>
+      </div>
+      <div id="docs-subtitle" style="font-size:12px;color:var(--muted);"></div>
+    </div>
+    <div id="docs-body" style="flex:1;overflow-y:auto;padding:16px 20px;"></div>
   </div>
 </div>
 
@@ -2011,6 +2024,7 @@ body { padding-bottom: 70px; }
           <div style="font-size:12px;color:var(--muted);">שולם: <span style="font-weight:700;color:var(--green);">₪${totalPaid.toLocaleString()}</span></div>
           <div style="margin-right:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
 <button onclick="openPatientHistory(${c.id})" style="font-size:11px;color:white;font-weight:700;background:var(--green);border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:4px 10px;border-radius:6px;">📋 היסטוריה</button>
+            <button onclick="openDocumentsModal(${c.id})" style="font-size:11px;color:white;font-weight:700;background:#7c6ef7;border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:4px 10px;border-radius:6px;">📄 מסמכים</button>
             <button onclick="openPaymentModalForClient(${c.id})" style="font-size:11px;color:white;font-weight:700;background:var(--green);border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:4px 10px;border-radius:6px;">+ תשלום חדש</button>
           </div>
         </div>
@@ -2352,17 +2366,13 @@ body { padding-bottom: 70px; }
     currentPhTab = tab;
     const btnT = document.getElementById('ph-tab-treatments');
     const btnP = document.getElementById('ph-tab-payments');
-    const btnD = document.getElementById('ph-tab-documents');
-    [btnT, btnP, btnD].forEach(b => { if (b) { b.style.background = 'var(--border)'; b.style.color = 'var(--text)'; } });
+    [btnT, btnP].forEach(b => { if (b) { b.style.background = 'var(--border)'; b.style.color = 'var(--text)'; } });
     if (tab === 'treatments') {
       btnT.style.background = '#7c6ef7'; btnT.style.color = 'white';
       renderPhTreatments();
-    } else if (tab === 'payments') {
+    } else {
       btnP.style.background = '#7c6ef7'; btnP.style.color = 'white';
       renderPhPayments();
-    } else if (tab === 'documents') {
-      if (btnD) { btnD.style.background = '#7c6ef7'; btnD.style.color = 'white'; }
-      renderPhDocuments();
     }
   }
 
@@ -2477,47 +2487,78 @@ body { padding-bottom: 70px; }
     document.getElementById('ph-body').innerHTML = html;
   }
 
-  function renderPhDocuments() {
-    const c = clients.find(x => x.id === currentPhClientId);
+  // ---- DOCUMENTS MODAL ----
+  let currentDocsClientId = null;
+
+  function openDocumentsModal(clientId) {
+    currentDocsClientId = clientId;
+    const c = clients.find(x => x.id === clientId);
+    if (!c) return;
+    document.getElementById('docs-title').textContent = '📄 מסמכים — ' + c.name;
+    const phone = c.phone ? (String(c.phone).startsWith('0') ? c.phone : '0'+c.phone) : '';
+    document.getElementById('docs-subtitle').textContent = phone ? '📞 ' + phone : '';
+    renderDocsModal();
+    document.getElementById('docsOverlay').style.display = 'flex';
+  }
+
+  function closeDocsModal() {
+    document.getElementById('docsOverlay').style.display = 'none';
+  }
+
+  function closeDocsOnOverlay(e) {
+    if (e.target === document.getElementById('docsOverlay')) closeDocsModal();
+  }
+
+  function renderDocsModal() {
+    const c = clients.find(x => x.id === currentDocsClientId);
     if (!c) return;
     const docs = (c.documents || []).slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
     const today = new Date().toISOString().split('T')[0];
     const typeIcon = { הסכם:'📝', אבחון:'🔍', דוח:'📊', הפנייה:'📋', אחר:'📎' };
+    const inputStyle = 'width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:\'Heebo\',sans-serif;font-size:14px;outline:none;background:var(--bg);box-sizing:border-box;';
 
-    let html = `<div style="padding:4px 0 8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <div style="font-size:13px;font-weight:700;color:var(--muted);">${docs.length} מסמכים</div>
-        <button onclick="toggleAddDocForm()" style="padding:7px 14px;background:var(--accent);color:white;border:none;border-radius:8px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">+ הוסף מסמך</button>
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);">${docs.length} מסמכים</div>
+      <button onclick="toggleAddDocForm()" style="padding:7px 14px;background:var(--accent);color:white;border:none;border-radius:8px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">+ הוסף מסמך</button>
+    </div>
+    <div id="add-doc-form" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;">📄 מסמך חדש</div>
+      <div class="form-row"><label>שם המסמך</label><input type="text" id="doc-title" placeholder="לדוגמה: הסכם טיפול 2025" style="${inputStyle}"></div>
+      <div class="form-row"><label>סוג מסמך</label>
+        <select id="doc-type" style="${inputStyle}">
+          <option value="הסכם">📝 הסכם</option>
+          <option value="אבחון">🔍 אבחון</option>
+          <option value="דוח">📊 דוח</option>
+          <option value="הפנייה">📋 הפנייה</option>
+          <option value="אחר">📎 אחר</option>
+        </select>
       </div>
-      <div id="add-doc-form" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:12px;">📄 מסמך חדש</div>
-        <div class="form-row"><label>שם המסמך</label><input type="text" id="doc-title" placeholder='לדוגמה: הסכם טיפול' style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;outline:none;background:var(--bg);"></div>
-        <div class="form-row"><label>סוג מסמך</label>
-          <select id="doc-type" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;outline:none;background:var(--bg);">
-            <option value="הסכם">📝 הסכם</option>
-            <option value="אבחון">🔍 אבחון</option>
-            <option value="דוח">📊 דוח</option>
-            <option value="הפנייה">📋 הפנייה</option>
-            <option value="אחר">📎 אחר</option>
-          </select>
-        </div>
-        <div class="form-row"><label>תאריך</label><input type="date" id="doc-date" value="${today}" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;outline:none;background:var(--bg);"></div>
-        <div class="form-row"><label>הערות</label><input type="text" id="doc-notes" placeholder="הערות נוספות..." style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;outline:none;background:var(--bg);"></div>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button onclick="saveDocument()" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">💾 שמור</button>
-          <button onclick="toggleAddDocForm()" style="padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;">ביטול</button>
-        </div>
-      </div>`;
+      <div class="form-row"><label>תאריך</label><input type="date" id="doc-date" value="${today}" style="${inputStyle}"></div>
+      <div class="form-row"><label>הערות</label><input type="text" id="doc-notes" placeholder="הערות נוספות..." style="${inputStyle}"></div>
+      <div class="form-row">
+        <label>קובץ (אופציונלי — שמור במכשיר זה בלבד)</label>
+        <input type="file" id="doc-file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:13px;background:var(--bg);box-sizing:border-box;">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">מקסימום 10MB • PDF, Word, תמונות</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button onclick="saveDocument()" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">💾 שמור</button>
+        <button onclick="toggleAddDocForm()" style="padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;">ביטול</button>
+      </div>
+    </div>`;
 
     if (docs.length === 0) {
       html += `<div style="text-align:center;padding:40px 20px;color:var(--muted);">
         <div style="font-size:2.5rem;margin-bottom:12px;">📄</div>
         <div style="font-weight:700;">אין מסמכים עדיין</div>
-        <div style="font-size:12px;margin-top:6px;">לחץ "הוסף מסמך" להוספת מסמך ראשון</div>
+        <div style="font-size:12px;margin-top:6px;">לחץ "+ הוסף מסמך" כדי להוסיף</div>
       </div>`;
     } else {
       docs.forEach(d => {
         const icon = typeIcon[d.type] || '📎';
+        const fileData = localStorage.getItem('docfile-' + d.id);
+        const fileBtn = fileData
+          ? `<a href="${fileData}" download="${esc(d.fileName||d.title)}" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--accent-light);color:var(--accent);border-radius:6px;font-size:11px;font-weight:700;text-decoration:none;margin-top:6px;">📎 פתח קובץ</a>`
+          : (d.fileName ? `<span style="font-size:11px;color:var(--muted);margin-top:4px;display:block;">📎 ${esc(d.fileName)} <span style="color:var(--red);">(לא זמין במכשיר זה)</span></span>` : '');
         html += `<div class="doc-item">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
             <div style="flex:1;min-width:0;">
@@ -2527,14 +2568,14 @@ body { padding-bottom: 70px; }
                 ${d.date ? `<span style="font-size:12px;color:var(--muted);">📅 ${d.date.split('-').reverse().join('/')}</span>` : ''}
               </div>
               ${d.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:5px;">💬 ${esc(d.notes)}</div>` : ''}
+              ${fileBtn}
             </div>
             <button onclick="deleteDocument('${d.id}')" style="width:30px;height:30px;flex-shrink:0;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--muted);font-size:14px;" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🗑️</button>
           </div>
         </div>`;
       });
     }
-    html += '</div>';
-    document.getElementById('ph-body').innerHTML = html;
+    document.getElementById('docs-body').innerHTML = html;
   }
 
   function toggleAddDocForm() {
@@ -2548,21 +2589,43 @@ body { padding-bottom: 70px; }
     const type = document.getElementById('doc-type').value;
     const date = document.getElementById('doc-date').value;
     const notes = (document.getElementById('doc-notes').value || '').trim();
-    const c = clients.find(x => x.id === currentPhClientId);
-    if (!c) return;
-    if (!c.documents) c.documents = [];
-    c.documents.push({ id: Date.now(), title, type, date, notes });
-    save();
-    renderPhDocuments();
+    const fileInput = document.getElementById('doc-file');
+    const file = fileInput && fileInput.files[0];
+
+    const docId = Date.now();
+    const docObj = { id: docId, title, type, date, notes, fileName: file ? file.name : '' };
+
+    const persist = () => {
+      const c = clients.find(x => x.id === currentDocsClientId);
+      if (!c) return;
+      if (!c.documents) c.documents = [];
+      c.documents.push(docObj);
+      save();
+      renderDocsModal();
+    };
+
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { alert('הקובץ גדול מדי (מקסימום 10MB)'); return; }
+      const reader = new FileReader();
+      reader.onload = e => {
+        try { localStorage.setItem('docfile-' + docId, e.target.result); }
+        catch(err) { alert('אין מספיק מקום לשמירת הקובץ. הפרטים יישמרו ללא הקובץ.'); docObj.fileName = ''; }
+        persist();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      persist();
+    }
   }
 
   function deleteDocument(docId) {
     if (!confirm('למחוק מסמך זה?')) return;
-    const c = clients.find(x => x.id === currentPhClientId);
+    const c = clients.find(x => x.id === currentDocsClientId);
     if (!c) return;
     c.documents = (c.documents || []).filter(d => String(d.id) !== String(docId));
+    try { localStorage.removeItem('docfile-' + docId); } catch(e) {}
     save();
-    renderPhDocuments();
+    renderDocsModal();
   }
 
   function editPayment(paymentId) {
