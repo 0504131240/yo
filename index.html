@@ -2509,32 +2509,33 @@ body { padding-bottom: 70px; }
     if (e.target === document.getElementById('docsOverlay')) closeDocsModal();
   }
 
+  const DOC_AUTO_NAME = new Set(['הסכם', 'אבחון']); // סוגים שלא צריכים שם נפרד
+
   function renderDocsModal() {
     const c = clients.find(x => x.id === currentDocsClientId);
     if (!c) return;
     const docs = (c.documents || []).slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
     const today = new Date().toISOString().split('T')[0];
-    const typeIcon = { הסכם:'📝', אבחון:'🔍', דוח:'📊', הפנייה:'📋', אחר:'📎' };
-    const inputStyle = 'width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:\'Heebo\',sans-serif;font-size:14px;outline:none;background:var(--bg);box-sizing:border-box;';
+    const typeIcon = { הסכם:'📝', אבחון:'🔍', דוח:'📊', הפנייה:'📋', שונות:'📎' };
+    const iS = 'width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:\'Heebo\',sans-serif;font-size:14px;outline:none;background:var(--bg);box-sizing:border-box;';
 
     let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
       <div style="font-size:13px;font-weight:700;color:var(--muted);">${docs.length} מסמכים</div>
       <button onclick="toggleAddDocForm()" style="padding:7px 14px;background:var(--accent);color:white;border:none;border-radius:8px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">+ הוסף מסמך</button>
     </div>
     <div id="add-doc-form" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
-      <div style="font-size:13px;font-weight:700;margin-bottom:12px;">📄 מסמך חדש</div>
-      <div class="form-row"><label>שם המסמך</label><input type="text" id="doc-title" placeholder="לדוגמה: הסכם טיפול 2025" style="${inputStyle}"></div>
       <div class="form-row"><label>סוג מסמך</label>
-        <select id="doc-type" style="${inputStyle}">
+        <select id="doc-type" onchange="docTypeChanged()" style="${iS}">
           <option value="הסכם">📝 הסכם</option>
           <option value="אבחון">🔍 אבחון</option>
           <option value="דוח">📊 דוח</option>
           <option value="הפנייה">📋 הפנייה</option>
-          <option value="אחר">📎 אחר</option>
+          <option value="שונות">📎 שונות</option>
         </select>
       </div>
-      <div class="form-row"><label>תאריך</label><input type="date" id="doc-date" value="${today}" style="${inputStyle}"></div>
-      <div class="form-row"><label>הערות</label><input type="text" id="doc-notes" placeholder="הערות נוספות..." style="${inputStyle}"></div>
+      <div id="doc-title-row" class="form-row" style="display:none;"><label>שם המסמך</label><input type="text" id="doc-title" placeholder="לדוגמה: דוח קצה שנה" style="${iS}"></div>
+      <div class="form-row"><label>תאריך</label><input type="date" id="doc-date" value="${today}" style="${iS}"></div>
+      <div class="form-row"><label>הערות</label><input type="text" id="doc-notes" placeholder="הערות נוספות..." style="${iS}"></div>
       <div class="form-row">
         <label>קובץ (אופציונלי — שמור במכשיר זה בלבד)</label>
         <input type="file" id="doc-file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:13px;background:var(--bg);box-sizing:border-box;">
@@ -2556,9 +2557,16 @@ body { padding-bottom: 70px; }
       docs.forEach(d => {
         const icon = typeIcon[d.type] || '📎';
         const fileData = localStorage.getItem('docfile-' + d.id);
-        const fileBtn = fileData
-          ? `<a href="${fileData}" download="${esc(d.fileName||d.title)}" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--accent-light);color:var(--accent);border-radius:6px;font-size:11px;font-weight:700;text-decoration:none;margin-top:6px;">📎 פתח קובץ</a>`
-          : (d.fileName ? `<span style="font-size:11px;color:var(--muted);margin-top:4px;display:block;">📎 ${esc(d.fileName)} <span style="color:var(--red);">(לא זמין במכשיר זה)</span></span>` : '');
+        let fileBtns = '';
+        if (fileData) {
+          const isViewable = /^data:(image|application\/pdf)/.test(fileData);
+          fileBtns = `<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+            ${isViewable ? `<button onclick="viewDocument('${d.id}')" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--accent-light);color:var(--accent);border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">👁️ צפה</button>` : ''}
+            <a href="${fileData}" download="${esc(d.fileName||d.title)}" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:700;text-decoration:none;">⬇️ הורד</a>
+          </div>`;
+        } else if (d.fileName) {
+          fileBtns = `<span style="font-size:11px;color:var(--muted);margin-top:4px;display:block;">📎 ${esc(d.fileName)} <span style="color:var(--red);">(לא זמין במכשיר זה)</span></span>`;
+        }
         html += `<div class="doc-item">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
             <div style="flex:1;min-width:0;">
@@ -2568,7 +2576,7 @@ body { padding-bottom: 70px; }
                 ${d.date ? `<span style="font-size:12px;color:var(--muted);">📅 ${d.date.split('-').reverse().join('/')}</span>` : ''}
               </div>
               ${d.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:5px;">💬 ${esc(d.notes)}</div>` : ''}
-              ${fileBtn}
+              ${fileBtns}
             </div>
             <button onclick="deleteDocument('${d.id}')" style="width:30px;height:30px;flex-shrink:0;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--muted);font-size:14px;" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🗑️</button>
           </div>
@@ -2578,15 +2586,36 @@ body { padding-bottom: 70px; }
     document.getElementById('docs-body').innerHTML = html;
   }
 
+  function docTypeChanged() {
+    const type = document.getElementById('doc-type').value;
+    const row = document.getElementById('doc-title-row');
+    if (row) row.style.display = DOC_AUTO_NAME.has(type) ? 'none' : '';
+  }
+
   function toggleAddDocForm() {
     const f = document.getElementById('add-doc-form');
     if (f) f.style.display = f.style.display === 'none' ? '' : 'none';
   }
 
+  function viewDocument(docId) {
+    const fileData = localStorage.getItem('docfile-' + docId);
+    if (!fileData) return;
+    const arr = fileData.split(',');
+    const mime = (arr[0].match(/:(.*?);/) || [])[1] || 'application/octet-stream';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8 = new Uint8Array(n);
+    while (n--) u8[n] = bstr.charCodeAt(n);
+    const url = URL.createObjectURL(new Blob([u8], {type: mime}));
+    window.open(url, '_blank');
+  }
+
   function saveDocument() {
-    const title = (document.getElementById('doc-title').value || '').trim();
-    if (!title) { alert('אנא הכנס שם למסמך'); return; }
     const type = document.getElementById('doc-type').value;
+    const isAuto = DOC_AUTO_NAME.has(type);
+    const titleEl = document.getElementById('doc-title');
+    const title = isAuto ? type : (titleEl ? titleEl.value.trim() : '');
+    if (!isAuto && !title) { alert('אנא הכנס שם למסמך'); return; }
     const date = document.getElementById('doc-date').value;
     const notes = (document.getElementById('doc-notes').value || '').trim();
     const fileInput = document.getElementById('doc-file');
