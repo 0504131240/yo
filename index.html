@@ -1821,7 +1821,7 @@ body { padding-bottom: 70px; }
     document.querySelector('.controls').style.display = mode === 'list' ? '' : 'none';
     document.querySelector('.table-wrap').style.display = mode === 'list' ? '' : 'none';
     const calWrap = document.getElementById('inline-calendar');
-    calWrap.style.display = mode === 'calendar' ? '' : 'none';
+    calWrap.style.display = mode === 'calendar' ? 'block' : 'none';
     if (mode === 'calendar') renderMonthCalendar();
   }
 
