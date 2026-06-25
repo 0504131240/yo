@@ -620,6 +620,35 @@
 /* push content above bottom bar */
 body { padding-bottom: 70px; }
 
+/* VIEW TOGGLE */
+.view-toggle { display:flex; gap:6px; justify-content:center; padding:0 20px 10px; }
+.view-toggle-btn { padding:8px 20px; border-radius:10px; border:1px solid var(--border); background:var(--surface); font-family:'Heebo',sans-serif; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; transition:all 0.2s; }
+.view-toggle-btn.active { background:var(--accent); color:white; border-color:var(--accent); box-shadow:0 2px 8px rgba(59,124,244,0.3); }
+
+/* MONTHLY CALENDAR */
+.mcal-wrap { padding:0 20px 20px; max-width:1200px; margin:0 auto; display:none; }
+.mcal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+.mcal-header { text-align:center; font-size:12px; font-weight:700; color:var(--muted); padding:8px 2px; }
+.mcal-cell { min-height:72px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:5px; transition:box-shadow 0.15s; overflow:hidden; }
+.mcal-cell:not(.empty):hover { box-shadow:var(--shadow); cursor:pointer; }
+.mcal-cell.today { border-color:var(--accent); background:var(--accent-light); }
+.mcal-cell.empty { background:transparent; border-color:transparent; }
+.mcal-day-num { font-size:11px; font-weight:700; color:var(--muted); margin-bottom:3px; }
+.mcal-cell.today .mcal-day-num { color:var(--accent); font-weight:900; font-size:13px; }
+.mcal-event { font-size:10px; background:var(--accent-light); color:var(--accent); border-radius:4px; padding:1px 4px; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+.mcal-event.paid { background:var(--green-light); color:var(--green); }
+.mcal-event.cancelled { background:var(--red-light); color:var(--red); opacity:0.6; }
+.mcal-more { font-size:10px; color:var(--muted); font-weight:600; padding:1px 2px; }
+@media (max-width:600px) {
+  .mcal-cell { min-height:46px; padding:3px; }
+  .mcal-event { font-size:9px; padding:1px 3px; }
+  .mcal-header { font-size:11px; padding:5px 1px; }
+}
+
+/* DOCUMENTS */
+.doc-item { background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:12px 16px; margin-bottom:8px; }
+.doc-type-badge { display:inline-block; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:700; background:var(--accent-light); color:var(--accent); }
+
 </style>
 </head>
 <body>
@@ -655,6 +684,12 @@ body { padding-bottom: 70px; }
     <button onclick="changeMonth(1)" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">›</button>
     <button onclick="goToToday()" style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:13px;font-family:'Heebo',sans-serif;font-weight:600;color:var(--muted);transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">היום</button>
   </div>
+</div>
+
+<!-- VIEW MODE TOGGLE -->
+<div class="view-toggle">
+  <button id="view-btn-list" class="view-toggle-btn active" onclick="toggleViewMode('list')">📋 רשימה</button>
+  <button id="view-btn-cal" class="view-toggle-btn" onclick="toggleViewMode('calendar')">📅 לוח שנה</button>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 20px 0;max-width:1200px;margin:0 auto;">
@@ -736,6 +771,8 @@ body { padding-bottom: 70px; }
   <button class="filter-btn" id="filter-unpaid" onclick="setFilter('unpaid')">⚠️ לא שולמו</button>
   <button class="filter-btn" id="filter-paid" onclick="setFilter('paid')">✅ שולמו</button>
 </div>
+
+<div id="inline-calendar" class="mcal-wrap"></div>
 
 <div class="table-wrap">
   <div class="treatment-card" id="cards-container"></div>
@@ -1226,6 +1263,7 @@ body { padding-bottom: 70px; }
       <div style="display:flex;gap:8px;">
         <button id="ph-tab-treatments" onclick="switchPhTab('treatments')" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:#7c6ef7;color:white;">📋 טיפולים</button>
         <button id="ph-tab-payments" onclick="switchPhTab('payments')" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:var(--border);color:var(--text);">💳 תשלומים</button>
+        <button id="ph-tab-documents" onclick="switchPhTab('documents')" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:var(--border);color:var(--text);">📄 מסמכים</button>
       </div>
     </div>
     <div class="ph-body" id="ph-body"></div>
@@ -1295,6 +1333,7 @@ body { padding-bottom: 70px; }
   let editingTreatmentId = null;
   let isSyncing = false;
   let isLoaded = false; // מונע שמירה לפני טעינה
+  let viewMode = 'list';
   let saveTimer = null;
 
   const now = new Date();
@@ -1353,6 +1392,7 @@ body { padding-bottom: 70px; }
       ...c,
       phone: c.phone ? (String(c.phone).startsWith('0') ? String(c.phone) : '0' + String(c.phone)) : '',
       tz: c.tz ? String(c.tz) : '',
+      documents: c.documents || [],
     }));
     treatments = (data.treatments || []).map(t => ({
       ...t,
@@ -1758,6 +1798,52 @@ body { padding-bottom: 70px; }
     document.getElementById('stat-avg-month').textContent = '₪' + avgMonth.toLocaleString();
     const statYearEl = document.getElementById('stat-year-treatments');
     if (statYearEl) statYearEl.textContent = yearTreatments.length + ' טיפולים השנה';
+    if (viewMode === 'calendar') renderMonthCalendar();
+  }
+
+  function toggleViewMode(mode) {
+    viewMode = mode;
+    document.getElementById('view-btn-list').classList.toggle('active', mode === 'list');
+    document.getElementById('view-btn-cal').classList.toggle('active', mode === 'calendar');
+    document.querySelector('.controls').style.display = mode === 'list' ? '' : 'none';
+    document.querySelector('.table-wrap').style.display = mode === 'list' ? '' : 'none';
+    const calWrap = document.getElementById('inline-calendar');
+    calWrap.style.display = mode === 'calendar' ? '' : 'none';
+    if (mode === 'calendar') renderMonthCalendar();
+  }
+
+  function renderMonthCalendar() {
+    const year = viewYear, month = viewMonth;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDow = firstDay.getDay();
+    const dayNames = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+
+    let html = '<div class="mcal-grid">';
+    dayNames.forEach(d => { html += `<div class="mcal-header">${d}</div>`; });
+    for (let i = 0; i < startDow; i++) html += '<div class="mcal-cell empty"></div>';
+
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+      const dateStr = year + '-' + String(month+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+      const isToday = dateStr === todayStr;
+      let dayTs = treatments.filter(t => t.date === dateStr);
+      if (selectedClientFilter) dayTs = dayTs.filter(t => String(t.clientId) === String(selectedClientFilter));
+
+      const events = dayTs.slice(0,4).map(t => {
+        const c = clients.find(x => x.id === t.clientId);
+        const name = c ? c.name.split(' ')[0] : '?';
+        const cls = t.status === 'paid' ? 'paid' : t.status === 'cancelled' ? 'cancelled' : '';
+        return `<div class="mcal-event ${cls}" onclick="event.stopPropagation();openPatientHistory(${t.clientId},'treatments')" title="${esc(c?c.name:'')}">${esc(name)}</div>`;
+      }).join('');
+      const more = dayTs.length > 4 ? `<div class="mcal-more">+${dayTs.length-4}</div>` : '';
+
+      html += `<div class="mcal-cell${isToday?' today':''}">
+        <div class="mcal-day-num">${day}</div>${events}${more}
+      </div>`;
+    }
+    html += '</div>';
+    document.getElementById('inline-calendar').innerHTML = html;
   }
 
   let returnToPanel = false;
@@ -2266,14 +2352,17 @@ body { padding-bottom: 70px; }
     currentPhTab = tab;
     const btnT = document.getElementById('ph-tab-treatments');
     const btnP = document.getElementById('ph-tab-payments');
+    const btnD = document.getElementById('ph-tab-documents');
+    [btnT, btnP, btnD].forEach(b => { if (b) { b.style.background = 'var(--border)'; b.style.color = 'var(--text)'; } });
     if (tab === 'treatments') {
       btnT.style.background = '#7c6ef7'; btnT.style.color = 'white';
-      btnP.style.background = 'var(--border)'; btnP.style.color = 'var(--text)';
       renderPhTreatments();
-    } else {
+    } else if (tab === 'payments') {
       btnP.style.background = '#7c6ef7'; btnP.style.color = 'white';
-      btnT.style.background = 'var(--border)'; btnT.style.color = 'var(--text)';
       renderPhPayments();
+    } else if (tab === 'documents') {
+      if (btnD) { btnD.style.background = '#7c6ef7'; btnD.style.color = 'white'; }
+      renderPhDocuments();
     }
   }
 
@@ -2386,6 +2475,94 @@ body { padding-bottom: 70px; }
       });
     }
     document.getElementById('ph-body').innerHTML = html;
+  }
+
+  function renderPhDocuments() {
+    const c = clients.find(x => x.id === currentPhClientId);
+    if (!c) return;
+    const docs = (c.documents || []).slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    const today = new Date().toISOString().split('T')[0];
+    const typeIcon = { הסכם:'📝', אבחון:'🔍', דוח:'📊', הפנייה:'📋', אחר:'📎' };
+
+    let html = `<div style="padding:4px 0 8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:700;color:var(--muted);">${docs.length} מסמכים</div>
+        <button onclick="toggleAddDocForm()" style="padding:7px 14px;background:var(--accent);color:white;border:none;border-radius:8px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">+ הוסף מסמך</button>
+      </div>
+      <div id="add-doc-form" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px;">📄 מסמך חדש</div>
+        <div class="form-row"><label>שם המסמך</label><input type="text" id="doc-title" placeholder='לדוגמה: הסכם טיפול' style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;outline:none;background:var(--bg);"></div>
+        <div class="form-row"><label>סוג מסמך</label>
+          <select id="doc-type" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;outline:none;background:var(--bg);">
+            <option value="הסכם">📝 הסכם</option>
+            <option value="אבחון">🔍 אבחון</option>
+            <option value="דוח">📊 דוח</option>
+            <option value="הפנייה">📋 הפנייה</option>
+            <option value="אחר">📎 אחר</option>
+          </select>
+        </div>
+        <div class="form-row"><label>תאריך</label><input type="date" id="doc-date" value="${today}" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;outline:none;background:var(--bg);"></div>
+        <div class="form-row"><label>הערות</label><input type="text" id="doc-notes" placeholder="הערות נוספות..." style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;outline:none;background:var(--bg);"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button onclick="saveDocument()" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">💾 שמור</button>
+          <button onclick="toggleAddDocForm()" style="padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;">ביטול</button>
+        </div>
+      </div>`;
+
+    if (docs.length === 0) {
+      html += `<div style="text-align:center;padding:40px 20px;color:var(--muted);">
+        <div style="font-size:2.5rem;margin-bottom:12px;">📄</div>
+        <div style="font-weight:700;">אין מסמכים עדיין</div>
+        <div style="font-size:12px;margin-top:6px;">לחץ "הוסף מסמך" להוספת מסמך ראשון</div>
+      </div>`;
+    } else {
+      docs.forEach(d => {
+        const icon = typeIcon[d.type] || '📎';
+        html += `<div class="doc-item">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:14px;margin-bottom:5px;">${icon} ${esc(d.title)}</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span class="doc-type-badge">${esc(d.type)}</span>
+                ${d.date ? `<span style="font-size:12px;color:var(--muted);">📅 ${d.date.split('-').reverse().join('/')}</span>` : ''}
+              </div>
+              ${d.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:5px;">💬 ${esc(d.notes)}</div>` : ''}
+            </div>
+            <button onclick="deleteDocument('${d.id}')" style="width:30px;height:30px;flex-shrink:0;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--muted);font-size:14px;" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🗑️</button>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div>';
+    document.getElementById('ph-body').innerHTML = html;
+  }
+
+  function toggleAddDocForm() {
+    const f = document.getElementById('add-doc-form');
+    if (f) f.style.display = f.style.display === 'none' ? '' : 'none';
+  }
+
+  function saveDocument() {
+    const title = (document.getElementById('doc-title').value || '').trim();
+    if (!title) { alert('אנא הכנס שם למסמך'); return; }
+    const type = document.getElementById('doc-type').value;
+    const date = document.getElementById('doc-date').value;
+    const notes = (document.getElementById('doc-notes').value || '').trim();
+    const c = clients.find(x => x.id === currentPhClientId);
+    if (!c) return;
+    if (!c.documents) c.documents = [];
+    c.documents.push({ id: Date.now(), title, type, date, notes });
+    save();
+    renderPhDocuments();
+  }
+
+  function deleteDocument(docId) {
+    if (!confirm('למחוק מסמך זה?')) return;
+    const c = clients.find(x => x.id === currentPhClientId);
+    if (!c) return;
+    c.documents = (c.documents || []).filter(d => String(d.id) !== String(docId));
+    save();
+    renderPhDocuments();
   }
 
   function editPayment(paymentId) {
