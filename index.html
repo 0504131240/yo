@@ -2650,7 +2650,11 @@ body { padding-bottom: 70px; }
       const u8 = new Uint8Array(bstr.length);
       for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
 
-      const pdf = await window.pdfjsLib.getDocument({data: u8}).promise;
+      const pdf = await window.pdfjsLib.getDocument({
+        data: u8,
+        cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+        cMapPacked: true,
+      }).promise;
       container.innerHTML = '';
       const dpr = window.devicePixelRatio || 1;
 
