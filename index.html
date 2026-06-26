@@ -2613,33 +2613,64 @@ body { padding-bottom: 70px; }
     const overlay = document.getElementById('docViewerOverlay');
     const content = document.getElementById('docViewerContent');
     document.getElementById('docViewerName').textContent = fileName || '';
+    overlay.style.display = 'flex';
 
     if (mime.startsWith('image/')) {
-      content.innerHTML = `<img src="${fileData}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">`;
+      content.style.cssText = 'flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:8px;';
+      content.innerHTML = `<img src="${fileData}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;border-radius:4px;">`;
     } else if (mime === 'application/pdf') {
-      // create blob URL for PDF embed
-      const arr = fileData.split(',');
-      const bstr = atob(arr[1]);
-      let n = bstr.length;
-      const u8 = new Uint8Array(n);
-      while (n--) u8[n] = bstr.charCodeAt(n);
-      const blobUrl = URL.createObjectURL(new Blob([u8], {type: 'application/pdf'}));
-      content.innerHTML = `<embed src="${blobUrl}" type="application/pdf" style="width:100vw;height:100%;border:none;">
-        <div style="display:none" id="pdf-fallback">
-          <div style="color:#fff;text-align:center;padding:40px 20px;">
-            <div style="font-size:2rem;margin-bottom:12px;">📄</div>
-            <div style="font-size:15px;margin-bottom:16px;">הדפדפן שלך אינו תומך בתצוגת PDF</div>
-            <a href="${fileData}" download="${fileName||'document.pdf'}" style="padding:12px 24px;background:#3b7cf4;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;">⬇️ הורד PDF</a>
-          </div>
-        </div>`;
+      content.style.cssText = 'flex:1;overflow-y:auto;display:block;padding:10px;background:#525659;';
+      content.innerHTML = `<div style="color:#fff;text-align:center;padding:40px;font-size:14px;">⏳ טוען PDF...</div>`;
+      renderPdfWithPdfJs(fileData, fileName, content);
     } else {
+      content.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;';
       content.innerHTML = `<div style="color:#fff;text-align:center;padding:40px 20px;">
         <div style="font-size:2rem;margin-bottom:12px;">📎</div>
         <div style="font-size:15px;margin-bottom:16px;">לא ניתן להציג קובץ מסוג זה</div>
         <a href="${fileData}" download="${fileName||'document'}" style="padding:12px 24px;background:#3b7cf4;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;">⬇️ הורד קובץ</a>
       </div>`;
     }
-    overlay.style.display = 'flex';
+  }
+
+  async function renderPdfWithPdfJs(fileData, fileName, container) {
+    try {
+      if (!window.pdfjsLib) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+          s.onload = res; s.onerror = rej;
+          document.head.appendChild(s);
+        });
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+
+      const arr = fileData.split(',');
+      const bstr = atob(arr[1]);
+      const u8 = new Uint8Array(bstr.length);
+      for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+
+      const pdf = await window.pdfjsLib.getDocument({data: u8}).promise;
+      container.innerHTML = '';
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const scale = (window.innerWidth * 0.96) / page.getViewport({scale:1}).width;
+        const vp = page.getViewport({scale});
+        const canvas = document.createElement('canvas');
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        canvas.style.cssText = 'display:block;margin:0 auto 8px;max-width:100%;border-radius:4px;background:#fff;';
+        container.appendChild(canvas);
+        await page.render({canvasContext: canvas.getContext('2d'), viewport: vp}).promise;
+      }
+    } catch(e) {
+      container.innerHTML = `<div style="color:#fff;text-align:center;padding:40px 20px;">
+        <div style="font-size:2rem;margin-bottom:12px;">⚠️</div>
+        <div style="font-size:14px;margin-bottom:16px;">שגיאה בטעינת ה-PDF</div>
+        <a href="${fileData}" download="${fileName||'document.pdf'}" style="padding:12px 24px;background:#3b7cf4;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;">⬇️ הורד PDF</a>
+      </div>`;
+    }
   }
 
   function closeDocViewer() {
