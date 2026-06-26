@@ -2656,14 +2656,16 @@ body { padding-bottom: 70px; }
 
       for (let p = 1; p <= pdf.numPages; p++) {
         const page = await pdf.getPage(p);
-        const baseScale = (window.innerWidth * 0.96) / page.getViewport({scale:1}).width;
-        const vp = page.getViewport({scale: baseScale * dpr});
+        const scale = (window.innerWidth * 0.96) / page.getViewport({scale:1}).width;
+        const vp = page.getViewport({scale}); // scale רגיל — לחישוב נכון של מרווחי אותיות
         const canvas = document.createElement('canvas');
-        canvas.width = vp.width;
-        canvas.height = vp.height;
-        canvas.style.cssText = `display:block;margin:0 auto 8px;width:${vp.width/dpr}px;height:${vp.height/dpr}px;max-width:100%;border-radius:4px;background:#fff;`;
+        canvas.width = Math.floor(vp.width * dpr);   // canvas פיזי גדול לחדות
+        canvas.height = Math.floor(vp.height * dpr);
+        canvas.style.cssText = `display:block;margin:0 auto 8px;width:${vp.width}px;height:${vp.height}px;max-width:100%;border-radius:4px;background:#fff;`;
         container.appendChild(canvas);
-        await page.render({canvasContext: canvas.getContext('2d'), viewport: vp}).promise;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr); // הגדלת ה-context בלבד — ה-viewport נשאר נכון
+        await page.render({canvasContext: ctx, viewport: vp}).promise;
       }
     } catch(e) {
       container.innerHTML = `<div style="color:#fff;text-align:center;padding:40px 20px;">
