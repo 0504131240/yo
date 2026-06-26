@@ -2696,7 +2696,7 @@ body { padding-bottom: 70px; }
     const fileInput = document.getElementById('doc-file');
     const file = fileInput && fileInput.files[0];
 
-    const docId = Date.now();
+    const docId = Date.now() + '_' + Math.random().toString(36).slice(2, 9);
     const docObj = { id: docId, title, type, date, notes, fileName: file ? file.name : '' };
 
     const persist = () => {
