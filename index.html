@@ -2652,15 +2652,16 @@ body { padding-bottom: 70px; }
 
       const pdf = await window.pdfjsLib.getDocument({data: u8}).promise;
       container.innerHTML = '';
+      const dpr = window.devicePixelRatio || 1;
 
       for (let p = 1; p <= pdf.numPages; p++) {
         const page = await pdf.getPage(p);
-        const scale = (window.innerWidth * 0.96) / page.getViewport({scale:1}).width;
-        const vp = page.getViewport({scale});
+        const baseScale = (window.innerWidth * 0.96) / page.getViewport({scale:1}).width;
+        const vp = page.getViewport({scale: baseScale * dpr});
         const canvas = document.createElement('canvas');
         canvas.width = vp.width;
         canvas.height = vp.height;
-        canvas.style.cssText = 'display:block;margin:0 auto 8px;max-width:100%;border-radius:4px;background:#fff;';
+        canvas.style.cssText = `display:block;margin:0 auto 8px;width:${vp.width/dpr}px;height:${vp.height/dpr}px;max-width:100%;border-radius:4px;background:#fff;`;
         container.appendChild(canvas);
         await page.render({canvasContext: canvas.getContext('2d'), viewport: vp}).promise;
       }
