@@ -1428,6 +1428,26 @@ body { padding-bottom: 70px; }
     }));
   }
 
+  function migrateDocumentIds() {
+    let changed = false;
+    clients.forEach(c => {
+      if (!c.documents || !c.documents.length) return;
+      c.documents = c.documents.map(d => {
+        if (/^\d+$/.test(String(d.id))) {
+          const newId = String(d.id) + '_' + Math.random().toString(36).slice(2, 9);
+          try {
+            const file = localStorage.getItem('docfile-' + d.id);
+            if (file) localStorage.setItem('docfile-' + newId, file);
+          } catch(e) {}
+          changed = true;
+          return { ...d, id: newId };
+        }
+        return d;
+      });
+    });
+    if (changed) save();
+  }
+
   async function load() {
     if (!isFirebaseConfigured()) {
       showSyncStatus('⚠️ טרם הוגדר חיבור ל-Firebase', 'var(--yellow)');
@@ -1443,6 +1463,7 @@ body { padding-bottom: 70px; }
       if (snap.exists()) {
         normalizeLoadedData(snap.data());
         isLoaded = true;
+        migrateDocumentIds();
         showSyncStatus('✅ נטען בהצלחה', 'var(--green)');
         saveLocal();
         render();
@@ -1459,6 +1480,7 @@ body { padding-bottom: 70px; }
       console.warn('load failed:', err);
       loadLocal();
       isLoaded = true;
+      migrateDocumentIds();
       showSyncStatus('⚠️ עובד מקומית (שגיאת טעינה)', 'var(--red)');
       render();
     }
