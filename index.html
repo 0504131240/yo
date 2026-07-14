@@ -3341,30 +3341,51 @@ body { padding-bottom: 70px; }
     document.getElementById('mf-status').value = 'unpaid';
     document.getElementById('mf-notes').value = '';
 
-    // הצע תאריכים לפי הלוח השבועי של הלקוח
+    // הגבלת תאריך: לא יותר מ-14 יום אחורה
+    const todayD = new Date(); todayD.setHours(0,0,0,0);
+    const minD = new Date(todayD); minD.setDate(todayD.getDate() - 14);
+    const toStr = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    document.getElementById('mf-date').min = toStr(minD);
+
+    // הצע תאריכים לפי הלוח השבועי של הלקוח (כולל עד שבועיים אחורה)
     const suggestEl = document.getElementById('mf-suggested-dates');
     if (c.active !== 'inactive' && c.scheduleDay !== undefined) {
-      const today = new Date(); today.setHours(0,0,0,0);
       const suggestions = [];
-      let current = new Date(today);
-      // מצא את הפגישה הבאה ו-3 הבאות אחריה
-      const diff = (c.scheduleDay - current.getDay() + 7) % 7;
-      current.setDate(current.getDate() + (diff === 0 ? 0 : diff));
-      for (let i = 0; i < 4; i++) {
-        const d = new Date(current);
-        const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-        // בדוק שאין כבר טיפול בתאריך הזה
-        const exists = treatments.find(t => String(t.clientId) === String(id) && t.date === dateStr && t.status !== 'cancelled');
-        if (!exists) suggestions.push(dateStr);
-        current.setDate(current.getDate() + 7);
+      const todayStr = toStr(todayD);
+
+      // תאריכים שעברו בשבועיים האחרונים
+      const daysBack = (todayD.getDay() - c.scheduleDay + 7) % 7;
+      if (daysBack > 0) {
+        let past = new Date(todayD); past.setDate(todayD.getDate() - daysBack);
+        while (past >= minD) {
+          const ds = toStr(past);
+          const exists = treatments.find(t => String(t.clientId) === String(id) && t.date === ds);
+          if (!exists) suggestions.push({ date: ds, past: true });
+          past.setDate(past.getDate() - 7);
+        }
       }
+
+      // תאריכים עתידיים (4 הבאים)
+      let future = new Date(todayD);
+      const daysAhead = (c.scheduleDay - todayD.getDay() + 7) % 7;
+      future.setDate(todayD.getDate() + daysAhead);
+      let cnt = 0;
+      while (cnt < 4) {
+        const ds = toStr(future);
+        const exists = treatments.find(t => String(t.clientId) === String(id) && t.date === ds && t.status !== 'cancelled');
+        if (!exists) { suggestions.push({ date: ds, past: false }); cnt++; }
+        future.setDate(future.getDate() + 7);
+      }
+
+      suggestions.sort((a,b) => a.date.localeCompare(b.date));
+
       if (suggestions.length > 0) {
         suggestEl.style.display = 'flex';
-        suggestEl.innerHTML = '<div style="width:100%;font-size:11px;color:var(--muted);margin-bottom:2px;">תאריכים מוצעים לפי הלוח השבועי:</div>' +
-          suggestions.map(d => `
-            <button onclick="document.getElementById('mf-date').value='${d}'" type="button"
-              style="padding:5px 10px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-light);color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">
-              ${formatDate(d)}
+        suggestEl.innerHTML = '<div style="width:100%;font-size:11px;color:var(--muted);margin-bottom:2px;">תאריכים זמינים לפי הלוח השבועי:</div>' +
+          suggestions.map(s => `
+            <button onclick="document.getElementById('mf-date').value='${s.date}'" type="button"
+              style="padding:5px 10px;border-radius:8px;border:1px solid ${s.past ? 'var(--border)' : 'var(--accent)'};background:${s.past ? 'var(--surface2)' : 'var(--accent-light)'};color:${s.past ? 'var(--text)' : 'var(--accent)'};font-size:12px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">
+              ${formatDate(s.date)}${s.past ? ' ↩' : ''}
             </button>`).join('');
       } else {
         suggestEl.style.display = 'none';
@@ -3386,6 +3407,25 @@ body { padding-bottom: 70px; }
     if (!selectedClientId) return;
     const date = document.getElementById('mf-date').value;
     if (!date) { alert('אנא בחר תאריך'); return; }
+
+    // ולידציה לתאריכים שעברו
+    const todayNow = new Date(); todayNow.setHours(0,0,0,0);
+    const toStr2 = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    const todayStr2 = toStr2(todayNow);
+    if (date < todayStr2) {
+      const minAllowed = new Date(todayNow); minAllowed.setDate(todayNow.getDate() - 14);
+      if (date < toStr2(minAllowed)) {
+        alert('לא ניתן לבחור תאריך מעל שבועיים אחורה');
+        return;
+      }
+      const conflict = treatments.find(t => String(t.clientId) === String(selectedClientId) && t.date === date);
+      if (conflict) {
+        const label = conflict.status === 'cancelled' ? 'ביטול' : 'טיפול';
+        alert('כבר קיים ' + label + ' בתאריך ' + formatDate(date) + ' עבור לקוח זה');
+        return;
+      }
+    }
+
     const newT = {
       id: 't' + Date.now() + Math.floor(Math.random()*10000),
       clientId: Number(selectedClientId),
