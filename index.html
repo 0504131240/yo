@@ -820,13 +820,23 @@ body { padding-bottom: 70px; }
       <div class="form-grid">
         <div class="form-row">
           <label>תאריך טיפול</label>
-          <input type="date" id="mf-date">
+          <input type="date" id="mf-date" onchange="updateDayCalendar()">
           <div id="mf-suggested-dates" style="display:none;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
         <div class="form-row">
           <label>סכום לתשלום (₪)</label>
           <input type="number" id="mf-amount" placeholder="0" min="0">
         </div>
+      </div>
+
+      <!-- יומן יומי לבחירת שעה -->
+      <input type="hidden" id="mf-time">
+      <div id="day-cal-wrap" style="display:none;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label style="margin:0;font-size:13px;">בחר שעת טיפול — לחץ על שעה פנויה</label>
+          <div id="day-cal-time-display" style="font-size:13px;font-weight:700;color:var(--muted);">לא נבחרה</div>
+        </div>
+        <div id="day-cal" onclick="selectDayCalTime(event)" style="border:1px solid var(--border);border-radius:10px;overflow-y:auto;max-height:260px;cursor:pointer;background:var(--surface2);user-select:none;"></div>
       </div>
 
       <div class="form-row">
@@ -3295,6 +3305,10 @@ body { padding-bottom: 70px; }
 
   function closeMeetingModal() {
     document.getElementById('meetingModalOverlay').classList.remove('open');
+    document.getElementById('mf-time').value = '';
+    document.getElementById('day-cal-wrap').style.display = 'none';
+    document.getElementById('day-cal-time-display').textContent = 'לא נבחרה';
+    document.getElementById('day-cal-time-display').style.color = 'var(--muted)';
   }
 
   function closeMeetingOnOverlay(e) {
@@ -3342,6 +3356,10 @@ body { padding-bottom: 70px; }
     document.getElementById('mf-notes').value = '';
 
     document.getElementById('mf-date').min = '';
+    document.getElementById('mf-time').value = '';
+    document.getElementById('day-cal-wrap').style.display = 'none';
+    document.getElementById('day-cal-time-display').textContent = 'לא נבחרה';
+    document.getElementById('day-cal-time-display').style.color = 'var(--muted)';
 
     // הצע תאריכים לפי הלוח השבועי: שבועיים אחורה + שבועיים קדימה
     const suggestEl = document.getElementById('mf-suggested-dates');
@@ -3374,7 +3392,7 @@ body { padding-bottom: 70px; }
         suggestEl.style.display = 'flex';
         suggestEl.innerHTML = '<div style="width:100%;font-size:11px;color:var(--muted);margin-bottom:2px;">תאריכים מוצעים לפי הלוח השבועי:</div>' +
           suggestions.map(s => `
-            <button onclick="document.getElementById('mf-date').value='${s.date}'" type="button"
+            <button onclick="document.getElementById('mf-date').value='${s.date}';document.getElementById('mf-time').value='';document.getElementById('day-cal-time-display').textContent='לא נבחרה';document.getElementById('day-cal-time-display').style.color='var(--muted)';updateDayCalendar()" type="button"
               style="padding:5px 10px;border-radius:8px;border:1px solid ${s.past ? 'var(--border)' : 'var(--accent)'};background:${s.past ? 'var(--surface2)' : 'var(--accent-light)'};color:${s.past ? 'var(--muted)' : 'var(--accent)'};font-size:12px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">
               ${formatDate(s.date)}
             </button>`).join('');
@@ -3392,6 +3410,102 @@ body { padding-bottom: 70px; }
   function backToSearch() {
     document.getElementById('meetingStep1').style.display = 'block';
     document.getElementById('meetingStep2').style.display = 'none';
+    document.getElementById('day-cal-wrap').style.display = 'none';
+    document.getElementById('mf-time').value = '';
+  }
+
+  function addMinutes(timeStr, mins) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const total = h * 60 + m + mins;
+    return String(Math.floor(total / 60)).padStart(2,'0') + ':' + String(total % 60).padStart(2,'0');
+  }
+
+  function updateDayCalendar() {
+    const date = document.getElementById('mf-date').value;
+    const wrap = document.getElementById('day-cal-wrap');
+    if (!date) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+
+    const DAY_START = 7, DAY_END = 21, HOUR_H = 64, TREAT_MIN = 40;
+    const TREAT_H = Math.round(TREAT_MIN * HOUR_H / 60);
+    const totalH = (DAY_END - DAY_START) * HOUR_H;
+    const selectedTime = document.getElementById('mf-time').value;
+    const dayTreatments = treatments.filter(t => t.date === date && t.status !== 'cancelled' && t.time);
+
+    let inner = '';
+
+    // קווי שעות
+    for (let h = DAY_START; h <= DAY_END; h++) {
+      const top = (h - DAY_START) * HOUR_H;
+      const isHalf = false;
+      inner += `<div style="position:absolute;top:${top}px;left:0;right:0;display:flex;align-items:flex-start;pointer-events:none;">
+        <span style="font-size:10px;color:var(--muted);width:40px;padding:1px 4px 0;flex-shrink:0;line-height:1;">${String(h).padStart(2,'0')}:00</span>
+        <div style="flex:1;height:1px;background:var(--border);margin-top:7px;"></div>
+      </div>`;
+      // קו חצי שעה
+      if (h < DAY_END) {
+        const topHalf = top + HOUR_H / 2;
+        inner += `<div style="position:absolute;top:${topHalf}px;left:40px;right:0;height:1px;background:var(--border);opacity:0.4;pointer-events:none;"></div>`;
+      }
+    }
+
+    // טיפולים קיימים
+    dayTreatments.forEach(t => {
+      const [hh, mm] = t.time.split(':').map(Number);
+      const minFromStart = (hh - DAY_START) * 60 + mm;
+      if (minFromStart < 0 || minFromStart > (DAY_END - DAY_START) * 60) return;
+      const top = Math.round(minFromStart * HOUR_H / 60);
+      const c = clients.find(x => x.id === t.clientId);
+      inner += `<div style="position:absolute;top:${top}px;right:44px;left:2px;height:${TREAT_H}px;background:var(--accent-light);border-right:3px solid var(--accent);border-radius:4px;padding:3px 6px;pointer-events:none;overflow:hidden;">
+        <div style="font-size:10px;font-weight:700;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c ? c.name : 'לקוח')}</div>
+        <div style="font-size:9px;color:var(--muted);">${t.time} – ${addMinutes(t.time, 40)}</div>
+      </div>`;
+    });
+
+    // בלוק הטיפול החדש הנבחר
+    if (selectedTime) {
+      const [hh, mm] = selectedTime.split(':').map(Number);
+      const minFromStart = (hh - DAY_START) * 60 + mm;
+      if (minFromStart >= 0 && minFromStart <= (DAY_END - DAY_START) * 60) {
+        const top = Math.round(minFromStart * HOUR_H / 60);
+        inner += `<div style="position:absolute;top:${top}px;right:44px;left:2px;height:${TREAT_H}px;background:var(--green-light);border-right:3px solid var(--green);border-radius:4px;padding:3px 6px;pointer-events:none;overflow:hidden;">
+          <div style="font-size:10px;font-weight:700;color:var(--green);">✓ טיפול חדש</div>
+          <div style="font-size:9px;color:var(--green);">${selectedTime} – ${addMinutes(selectedTime, 40)}</div>
+        </div>`;
+      }
+    }
+
+    const container = document.getElementById('day-cal');
+    const prevScroll = container.scrollTop;
+    container.innerHTML = `<div style="position:relative;height:${totalH}px;">${inner}</div>`;
+    // גלול ל-8:00 בפעם הראשונה, אחרת שמור מיקום
+    container.scrollTop = prevScroll || (8 - DAY_START) * HOUR_H;
+  }
+
+  function selectDayCalTime(e) {
+    const container = document.getElementById('day-cal');
+    const inner = container.firstElementChild;
+    if (!inner) return;
+    const rect = inner.getBoundingClientRect();
+    const DAY_START = 7, DAY_END = 21, HOUR_H = 64;
+
+    const y = e.clientY - rect.top;
+    const totalMins = (y / HOUR_H) * 60;
+    const snapped = Math.round(totalMins / 15) * 15;
+    const absHour = DAY_START + Math.floor(snapped / 60);
+    const absMins = snapped % 60;
+
+    if (absHour < DAY_START || absHour > DAY_END - 1) return;
+    if (absHour === DAY_END - 1 && absMins > 20) return; // טיפול ייגמר אחרי 21:00
+
+    const timeStr = String(absHour).padStart(2,'0') + ':' + String(absMins).padStart(2,'0');
+    document.getElementById('mf-time').value = timeStr;
+
+    const display = document.getElementById('day-cal-time-display');
+    display.textContent = timeStr + ' – ' + addMinutes(timeStr, 40);
+    display.style.color = 'var(--green)';
+
+    updateDayCalendar();
   }
 
   function saveMeeting() {
@@ -3403,6 +3517,7 @@ body { padding-bottom: 70px; }
       id: 't' + Date.now() + Math.floor(Math.random()*10000),
       clientId: Number(selectedClientId),
       date,
+      time: document.getElementById('mf-time').value || '',
       amount: Math.max(0, parseFloat(document.getElementById('mf-amount').value) || 0),
       status: document.getElementById('mf-status').value,
       paidAmount: 0,
