@@ -3343,28 +3343,40 @@ body { padding-bottom: 70px; }
 
     document.getElementById('mf-date').min = '';
 
-    // הצע תאריכים עתידיים לפי הלוח השבועי של הלקוח
+    // הצע תאריכים לפי הלוח השבועי: שבועיים אחורה + שבועיים קדימה
     const suggestEl = document.getElementById('mf-suggested-dates');
     if (c.active !== 'inactive' && c.scheduleDay !== undefined) {
       const todayD = new Date(); todayD.setHours(0,0,0,0);
       const toStr = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      const todayStr = toStr(todayD);
+      const twoWeeksAgo = new Date(todayD); twoWeeksAgo.setDate(todayD.getDate() - 14);
+      const twoWeeksAhead = new Date(todayD); twoWeeksAhead.setDate(todayD.getDate() + 14);
       const suggestions = [];
-      let current = new Date(todayD);
-      const diff = (c.scheduleDay - current.getDay() + 7) % 7;
-      current.setDate(current.getDate() + (diff === 0 ? 0 : diff));
-      for (let i = 0; i < 4; i++) {
-        const dateStr = toStr(current);
-        const exists = treatments.find(t => String(t.clientId) === String(id) && t.date === dateStr && t.status !== 'cancelled');
-        if (!exists) suggestions.push(dateStr);
-        current.setDate(current.getDate() + 7);
+
+      // מצא את כל אירועי יום הלוח בטווח שבועיים אחורה עד שבועיים קדימה
+      // התחל מהאירוע הראשון בטווח
+      let cur = new Date(twoWeeksAgo);
+      const daysToSched = (c.scheduleDay - cur.getDay() + 7) % 7;
+      cur.setDate(cur.getDate() + daysToSched);
+
+      while (cur <= twoWeeksAhead) {
+        const ds = toStr(cur);
+        const isPast = ds < todayStr;
+        // עבר: לא להציע אם קיים טיפול או ביטול; עתיד: לא להציע אם קיים טיפול שאינו ביטול
+        const exists = isPast
+          ? treatments.find(t => String(t.clientId) === String(id) && t.date === ds)
+          : treatments.find(t => String(t.clientId) === String(id) && t.date === ds && t.status !== 'cancelled');
+        if (!exists) suggestions.push({ date: ds, past: isPast });
+        cur.setDate(cur.getDate() + 7);
       }
+
       if (suggestions.length > 0) {
         suggestEl.style.display = 'flex';
         suggestEl.innerHTML = '<div style="width:100%;font-size:11px;color:var(--muted);margin-bottom:2px;">תאריכים מוצעים לפי הלוח השבועי:</div>' +
-          suggestions.map(d => `
-            <button onclick="document.getElementById('mf-date').value='${d}'" type="button"
-              style="padding:5px 10px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-light);color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">
-              ${formatDate(d)}
+          suggestions.map(s => `
+            <button onclick="document.getElementById('mf-date').value='${s.date}'" type="button"
+              style="padding:5px 10px;border-radius:8px;border:1px solid ${s.past ? 'var(--border)' : 'var(--accent)'};background:${s.past ? 'var(--surface2)' : 'var(--accent-light)'};color:${s.past ? 'var(--muted)' : 'var(--accent)'};font-size:12px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">
+              ${formatDate(s.date)}
             </button>`).join('');
       } else {
         suggestEl.style.display = 'none';
