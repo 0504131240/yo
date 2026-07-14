@@ -888,6 +888,7 @@ body { padding-bottom: 70px; }
       </div>
       <div id="f-schedule-fields" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:4px;">
         <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;">⏰ לוח שבועי קבוע</div>
+        <input type="hidden" id="f-time" value="16:00">
         <div class="form-grid">
           <div class="form-row" style="margin-bottom:0;">
             <label>יום בשבוע</label>
@@ -901,22 +902,21 @@ body { padding-bottom: 70px; }
             </select>
           </div>
           <div class="form-row" style="margin-bottom:0;">
-            <label>שעה</label>
-            <input type="time" id="f-time" value="16:00" onchange="updateScheduleCalendar()">
-          </div>
-          <div class="form-row" style="margin-bottom:0;">
             <label>סכום (₪)</label>
             <input type="number" id="f-weekly-amount" value="350" min="0">
           </div>
-          <div class="form-row" style="margin-bottom:0;">
+          <div class="form-row" style="margin-bottom:0;grid-column:1/-1;">
             <label>תאריך התחלה</label>
             <input type="date" id="f-start-date">
           </div>
         </div>
-        <!-- יומן שבועי — לחץ לבחירת שעה -->
+        <!-- יומן שבועי עם הצעות בקפיצות 40 דקות -->
         <div style="margin-top:12px;">
-          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">לחץ על שעה פנויה לבחירה מהירה</div>
-          <div id="schedule-cal" onclick="selectScheduleCalTime(event)" style="border:1px solid var(--border);border-radius:8px;overflow-y:auto;max-height:240px;cursor:pointer;background:var(--surface);user-select:none;"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-size:11px;color:var(--muted);">לחץ על שעה פנויה</div>
+            <div id="schedule-cal-selected" style="font-size:12px;font-weight:700;color:var(--muted);">לא נבחרה שעה</div>
+          </div>
+          <div id="schedule-cal" style="border:1px solid var(--border);border-radius:8px;overflow-y:auto;max-height:240px;background:var(--surface);user-select:none;"></div>
         </div>
       </div>
     </div>
@@ -1953,6 +1953,10 @@ body { padding-bottom: 70px; }
       document.getElementById('f-weekly-amount').value = c.weeklyAmount || '350';
       document.getElementById('f-start-date').value = c.startDate || '';
       toggleScheduleFields();
+      const st = c.scheduleTime || '';
+      const dispEl = document.getElementById('schedule-cal-selected');
+      if (st) { dispEl.textContent = st + ' – ' + addMinutes(st, 40); dispEl.style.color = 'var(--green)'; }
+      else { dispEl.textContent = 'לא נבחרה שעה'; dispEl.style.color = 'var(--muted)'; }
       updateScheduleCalendar();
     } else {
       document.getElementById('modalTitle').textContent = 'לקוח חדש';
@@ -1961,9 +1965,11 @@ body { padding-bottom: 70px; }
       document.getElementById('f-tz').value = '';
       document.getElementById('f-active').value = 'active';
       document.getElementById('f-day').value = '1';
-      document.getElementById('f-time').value = '16:00';
+      document.getElementById('f-time').value = '';
       document.getElementById('f-weekly-amount').value = '350';
       document.getElementById('f-start-date').value = '';
+      document.getElementById('schedule-cal-selected').textContent = 'לא נבחרה שעה';
+      document.getElementById('schedule-cal-selected').style.color = 'var(--muted)';
       toggleScheduleFields();
       updateScheduleCalendar();
     }
@@ -3422,64 +3428,64 @@ body { padding-bottom: 70px; }
       c.scheduleTime &&
       c.id !== editingClientId
     );
+    const occupiedMins = sameDayClients.map(c => {
+      const [h, m] = c.scheduleTime.split(':').map(Number);
+      return h * 60 + m;
+    });
 
     let inner = '';
+
+    // קווי שעות
     for (let h = DAY_START; h <= DAY_END; h++) {
       const top = (h - DAY_START) * HOUR_H;
       inner += `<div style="position:absolute;top:${top}px;left:0;right:0;display:flex;align-items:flex-start;pointer-events:none;">
         <span style="font-size:10px;color:var(--muted);width:38px;padding:1px 4px 0;flex-shrink:0;line-height:1;">${String(h).padStart(2,'0')}:00</span>
         <div style="flex:1;height:1px;background:var(--border);margin-top:7px;"></div>
       </div>`;
-      if (h < DAY_END) {
-        inner += `<div style="position:absolute;top:${top + HOUR_H/2}px;left:38px;right:0;height:1px;background:var(--border);opacity:0.3;pointer-events:none;"></div>`;
-      }
     }
 
-    sameDayClients.forEach(c => {
-      const parts = c.scheduleTime.split(':').map(Number);
-      const minFromStart = (parts[0] - DAY_START) * 60 + parts[1];
-      if (minFromStart < 0 || minFromStart > (DAY_END - DAY_START) * 60) return;
+    // slots פנויים בקפיצות 40 דקות — כפתורים לחיצים
+    for (let min = DAY_START * 60; min + TREAT_MIN <= DAY_END * 60; min += TREAT_MIN) {
+      const minFromStart = min - DAY_START * 60;
       const top = Math.round(minFromStart * HOUR_H / 60);
-      inner += `<div style="position:absolute;top:${top}px;right:42px;left:2px;height:${TREAT_H}px;background:var(--accent-light);border-right:3px solid var(--accent);border-radius:4px;padding:2px 6px;pointer-events:none;overflow:hidden;">
-        <div style="font-size:10px;font-weight:700;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.name)}</div>
-        <div style="font-size:9px;color:var(--muted);">${c.scheduleTime} – ${addMinutes(c.scheduleTime, 40)}</div>
-      </div>`;
-    });
+      const h = Math.floor(min / 60), m = min % 60;
+      const ts = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+      const isTaken = occupiedMins.some(o => Math.abs(o - min) < TREAT_MIN);
+      const isSelected = ts === selectedTime;
 
-    if (selectedTime) {
-      const parts = selectedTime.split(':').map(Number);
-      const minFromStart = (parts[0] - DAY_START) * 60 + parts[1];
-      if (minFromStart >= 0 && minFromStart <= (DAY_END - DAY_START) * 60) {
-        const top = Math.round(minFromStart * HOUR_H / 60);
-        inner += `<div style="position:absolute;top:${top}px;right:42px;left:2px;height:${TREAT_H}px;background:var(--green-light);border-right:3px solid var(--green);border-radius:4px;padding:2px 6px;pointer-events:none;overflow:hidden;">
-          <div style="font-size:10px;font-weight:700;color:var(--green);">✓ לקוח זה</div>
-          <div style="font-size:9px;color:var(--green);">${selectedTime} – ${addMinutes(selectedTime, 40)}</div>
+      if (isSelected) {
+        inner += `<div style="position:absolute;top:${top}px;right:42px;left:2px;height:${TREAT_H}px;background:var(--green-light);border-right:3px solid var(--green);border-radius:4px;padding:2px 8px;pointer-events:none;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;font-weight:700;color:var(--green);">✓ ${ts} – ${addMinutes(ts,40)}</span>
+        </div>`;
+      } else if (!isTaken) {
+        inner += `<div onclick="selectScheduleTime('${ts}')" style="position:absolute;top:${top}px;right:42px;left:2px;height:${TREAT_H}px;border:1px dashed var(--border);border-radius:4px;padding:2px 8px;cursor:pointer;display:flex;align-items:center;transition:background 0.1s;" onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background=''">
+          <span style="font-size:11px;color:var(--muted);">${ts}</span>
         </div>`;
       }
     }
+
+    // לקוחות קיימים (מעל הכל)
+    sameDayClients.forEach(c => {
+      const [h, m] = c.scheduleTime.split(':').map(Number);
+      const minFromStart = (h - DAY_START) * 60 + m;
+      if (minFromStart < 0 || minFromStart > (DAY_END - DAY_START) * 60) return;
+      const top = Math.round(minFromStart * HOUR_H / 60);
+      inner += `<div style="position:absolute;top:${top}px;right:42px;left:2px;height:${TREAT_H}px;background:var(--accent-light);border-right:3px solid var(--accent);border-radius:4px;padding:2px 8px;pointer-events:none;overflow:hidden;display:flex;align-items:center;gap:6px;">
+        <span style="font-size:11px;font-weight:700;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.name)}</span>
+        <span style="font-size:10px;color:var(--muted);flex-shrink:0;">${c.scheduleTime}–${addMinutes(c.scheduleTime,40)}</span>
+      </div>`;
+    });
 
     const prevScroll = cal.scrollTop;
     cal.innerHTML = `<div style="position:relative;height:${totalH}px;">${inner}</div>`;
     cal.scrollTop = prevScroll || (8 - DAY_START) * HOUR_H;
   }
 
-  function selectScheduleCalTime(e) {
-    const cal = document.getElementById('schedule-cal');
-    const inner = cal.firstElementChild;
-    if (!inner) return;
-    const rect = inner.getBoundingClientRect();
-    const DAY_START = 7, DAY_END = 21, HOUR_H = 60;
-
-    const y = e.clientY - rect.top;
-    const snapped = Math.round((y / HOUR_H) * 60 / 15) * 15;
-    const absHour = DAY_START + Math.floor(snapped / 60);
-    const absMins = snapped % 60;
-
-    if (absHour < DAY_START || absHour >= DAY_END) return;
-    if (absHour === DAY_END - 1 && absMins > 20) return;
-
-    const timeStr = String(absHour).padStart(2,'0') + ':' + String(absMins).padStart(2,'0');
-    document.getElementById('f-time').value = timeStr;
+  function selectScheduleTime(ts) {
+    document.getElementById('f-time').value = ts;
+    const disp = document.getElementById('schedule-cal-selected');
+    disp.textContent = ts + ' – ' + addMinutes(ts, 40);
+    disp.style.color = 'var(--green)';
     updateScheduleCalendar();
   }
 
