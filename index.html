@@ -891,7 +891,7 @@ body { padding-bottom: 70px; }
         <div class="form-grid">
           <div class="form-row" style="margin-bottom:0;">
             <label>יום בשבוע</label>
-            <select id="f-day" style="font-family:'Heebo',sans-serif;" onchange="updateScheduleCalendar()">
+            <select id="f-day" style="font-family:'Heebo',sans-serif;" onchange="if(document.getElementById('stpOverlay').style.display!=='none')updateStpCalendar()">
               <option value="0">ראשון</option>
               <option value="1">שני</option>
               <option value="2">שלישי</option>
@@ -902,7 +902,10 @@ body { padding-bottom: 70px; }
           </div>
           <div class="form-row" style="margin-bottom:0;">
             <label>שעה</label>
-            <input type="time" id="f-time" value="16:00" onchange="onManualTimeChange()">
+            <button type="button" onclick="openScheduleTimePicker()" style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-family:'Heebo',sans-serif;font-size:14px;color:var(--text);text-align:right;">
+              <span id="schedule-time-btn-text" style="color:var(--muted);">בחר שעה ›</span>
+            </button>
+            <input type="hidden" id="f-time" value="">
           </div>
           <div class="form-row" style="margin-bottom:0;">
             <label>סכום (₪)</label>
@@ -912,14 +915,6 @@ body { padding-bottom: 70px; }
             <label>תאריך התחלה</label>
             <input type="date" id="f-start-date">
           </div>
-        </div>
-        <!-- יומן שבועי עם הצעות בקפיצות 40 דקות -->
-        <div style="margin-top:12px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div style="font-size:11px;color:var(--muted);">לחץ על שעה פנויה</div>
-            <div id="schedule-cal-selected" style="font-size:12px;font-weight:700;color:var(--muted);">לא נבחרה שעה</div>
-          </div>
-          <div id="schedule-cal" style="border:1px solid var(--border);border-radius:8px;overflow-y:auto;max-height:240px;background:var(--surface);user-select:none;"></div>
         </div>
       </div>
     </div>
@@ -1325,6 +1320,30 @@ body { padding-bottom: 70px; }
       <button onclick="closeClientDetail()" style="width:32px;height:32px;border:1px solid var(--border);background:var(--bg);border-radius:8px;font-size:16px;cursor:pointer;color:var(--muted);">✕</button>
     </div>
     <div id="client-detail-body" style="flex:1;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- SCHEDULE TIME PICKER -->
+<div id="stpOverlay" onclick="closeStpOnOverlay(event)" style="position:fixed;inset:0;background:rgba(15,30,70,0.6);backdrop-filter:blur(6px);z-index:350;display:none;align-items:flex-end;justify-content:center;">
+  <div id="stpModal" style="background:var(--surface);width:100%;max-width:540px;max-height:88vh;display:flex;flex-direction:column;border-radius:24px 24px 0 0;box-shadow:0 -8px 40px rgba(30,50,100,0.18);animation:slideUp 0.3s ease;">
+    <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="font-weight:700;font-size:15px;">בחירת שעת טיפול</div>
+      <button onclick="closeScheduleTimePicker()" style="width:32px;height:32px;border:1px solid var(--border);background:var(--bg);border-radius:8px;font-size:16px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+    <div style="padding:14px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">הזנה ידנית</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <input type="time" id="stp-time" style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:16px;background:var(--bg);color:var(--text);" onchange="onStpManualChange()">
+        <div id="stp-display" style="font-size:13px;font-weight:700;color:var(--muted);min-width:90px;text-align:center;">–</div>
+      </div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:12px 20px;min-height:0;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">לחץ על שעה פנויה ביומן</div>
+      <div id="stp-cal" style="border:1px solid var(--border);border-radius:8px;overflow-y:auto;height:300px;background:var(--surface);user-select:none;"></div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;">
+      <button onclick="confirmScheduleTime()" style="width:100%;padding:14px;background:var(--green);color:#fff;border:none;border-radius:12px;font-family:'Heebo',sans-serif;font-size:16px;font-weight:700;cursor:pointer;">✓ אישור</button>
+    </div>
   </div>
 </div>
 
@@ -1952,15 +1971,14 @@ body { padding-bottom: 70px; }
       document.getElementById('f-tz').value = c.tz || '';
       document.getElementById('f-active').value = c.active || 'active';
       document.getElementById('f-day').value = c.scheduleDay !== undefined ? c.scheduleDay : '1';
-      document.getElementById('f-time').value = c.scheduleTime || '16:00';
+      document.getElementById('f-time').value = c.scheduleTime || '';
       document.getElementById('f-weekly-amount').value = c.weeklyAmount || '350';
       document.getElementById('f-start-date').value = c.startDate || '';
       toggleScheduleFields();
       const st = c.scheduleTime || '';
-      const dispEl = document.getElementById('schedule-cal-selected');
-      if (st) { dispEl.textContent = st + ' – ' + addMinutes(st, 40); dispEl.style.color = 'var(--green)'; }
-      else { dispEl.textContent = 'לא נבחרה שעה'; dispEl.style.color = 'var(--muted)'; }
-      updateScheduleCalendar();
+      const btnText = document.getElementById('schedule-time-btn-text');
+      if (st) { btnText.textContent = st + ' – ' + addMinutes(st, 40); btnText.style.color = 'var(--green)'; }
+      else { btnText.textContent = 'בחר שעה ›'; btnText.style.color = 'var(--muted)'; }
     } else {
       document.getElementById('modalTitle').textContent = 'לקוח חדש';
       document.getElementById('f-name').value = '';
@@ -1971,10 +1989,10 @@ body { padding-bottom: 70px; }
       document.getElementById('f-time').value = '';
       document.getElementById('f-weekly-amount').value = '350';
       document.getElementById('f-start-date').value = '';
-      document.getElementById('schedule-cal-selected').textContent = 'לא נבחרה שעה';
-      document.getElementById('schedule-cal-selected').style.color = 'var(--muted)';
+      const newBtnText = document.getElementById('schedule-time-btn-text');
+      newBtnText.textContent = 'בחר שעה ›';
+      newBtnText.style.color = 'var(--muted)';
       toggleScheduleFields();
-      updateScheduleCalendar();
     }
   }
 
@@ -3415,11 +3433,64 @@ body { padding-bottom: 70px; }
     return String(Math.floor(total / 60)).padStart(2,'0') + ':' + String(total % 60).padStart(2,'0');
   }
 
-  function updateScheduleCalendar() {
-    const cal = document.getElementById('schedule-cal');
+  function openScheduleTimePicker() {
+    const cur = document.getElementById('f-time').value;
+    document.getElementById('stp-time').value = cur || '';
+    updateStpDisplay();
+    document.getElementById('stpOverlay').style.display = 'flex';
+    updateStpCalendar();
+  }
+
+  function closeScheduleTimePicker() {
+    document.getElementById('stpOverlay').style.display = 'none';
+  }
+
+  function closeStpOnOverlay(e) {
+    if (e.target === document.getElementById('stpOverlay')) closeScheduleTimePicker();
+  }
+
+  function onStpManualChange() {
+    updateStpDisplay();
+    updateStpCalendar();
+  }
+
+  function updateStpDisplay() {
+    const ts = document.getElementById('stp-time').value;
+    const disp = document.getElementById('stp-display');
+    if (ts) {
+      disp.textContent = ts + ' – ' + addMinutes(ts, 40);
+      disp.style.color = 'var(--green)';
+    } else {
+      disp.textContent = '–';
+      disp.style.color = 'var(--muted)';
+    }
+  }
+
+  function selectStpTime(ts) {
+    document.getElementById('stp-time').value = ts;
+    updateStpDisplay();
+    updateStpCalendar();
+  }
+
+  function confirmScheduleTime() {
+    const ts = document.getElementById('stp-time').value;
+    document.getElementById('f-time').value = ts;
+    const btn = document.getElementById('schedule-time-btn-text');
+    if (ts) {
+      btn.textContent = ts + ' – ' + addMinutes(ts, 40);
+      btn.style.color = 'var(--green)';
+    } else {
+      btn.textContent = 'בחר שעה ›';
+      btn.style.color = 'var(--muted)';
+    }
+    closeScheduleTimePicker();
+  }
+
+  function updateStpCalendar() {
+    const cal = document.getElementById('stp-cal');
     if (!cal) return;
     const dayOfWeek = parseInt(document.getElementById('f-day').value);
-    const selectedTime = document.getElementById('f-time').value;
+    const selectedTime = document.getElementById('stp-time').value;
 
     const DAY_START = 7, DAY_END = 21, HOUR_H = 60, TREAT_MIN = 40;
     const TREAT_H = Math.round(TREAT_MIN * HOUR_H / 60);
@@ -3438,7 +3509,6 @@ body { padding-bottom: 70px; }
 
     let inner = '';
 
-    // קווי שעות
     for (let h = DAY_START; h <= DAY_END; h++) {
       const top = (h - DAY_START) * HOUR_H;
       inner += `<div style="position:absolute;top:${top}px;left:0;right:0;display:flex;align-items:flex-start;pointer-events:none;">
@@ -3447,7 +3517,6 @@ body { padding-bottom: 70px; }
       </div>`;
     }
 
-    // בנה רשימת slots: גריד סטנדרטי + צמוד לכל לקוח קיים
     const slotSet = new Set();
     for (let min = DAY_START * 60; min + TREAT_MIN <= DAY_END * 60; min += TREAT_MIN) {
       slotSet.add(min);
@@ -3460,7 +3529,6 @@ body { padding-bottom: 70px; }
     });
     const allSlots = [...slotSet].sort((a, b) => a - b);
 
-    // הצג slots פנויים — כפתורים לחיצים
     allSlots.forEach(min => {
       if (min < DAY_START * 60 || min + TREAT_MIN > DAY_END * 60) return;
       const minFromStart = min - DAY_START * 60;
@@ -3475,13 +3543,12 @@ body { padding-bottom: 70px; }
           <span style="font-size:11px;font-weight:700;color:var(--green);">✓ ${ts} – ${addMinutes(ts,40)}</span>
         </div>`;
       } else if (!isTaken) {
-        inner += `<div onclick="selectScheduleTime('${ts}')" style="position:absolute;top:${top}px;right:42px;left:2px;height:${TREAT_H}px;border:1px dashed var(--border);border-radius:4px;padding:2px 8px;cursor:pointer;display:flex;align-items:center;transition:background 0.1s;" onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background=''">
+        inner += `<div onclick="selectStpTime('${ts}')" style="position:absolute;top:${top}px;right:42px;left:2px;height:${TREAT_H}px;border:1px dashed var(--border);border-radius:4px;padding:2px 8px;cursor:pointer;display:flex;align-items:center;transition:background 0.1s;" onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background=''">
           <span style="font-size:11px;color:var(--muted);">${ts}</span>
         </div>`;
       }
     });
 
-    // לקוחות קיימים (מעל הכל)
     sameDayClients.forEach(c => {
       const [h, m] = c.scheduleTime.split(':').map(Number);
       const minFromStart = (h - DAY_START) * 60 + m;
@@ -3496,27 +3563,6 @@ body { padding-bottom: 70px; }
     const prevScroll = cal.scrollTop;
     cal.innerHTML = `<div style="position:relative;height:${totalH}px;">${inner}</div>`;
     cal.scrollTop = prevScroll || (8 - DAY_START) * HOUR_H;
-  }
-
-  function selectScheduleTime(ts) {
-    document.getElementById('f-time').value = ts;
-    const disp = document.getElementById('schedule-cal-selected');
-    disp.textContent = ts + ' – ' + addMinutes(ts, 40);
-    disp.style.color = 'var(--green)';
-    updateScheduleCalendar();
-  }
-
-  function onManualTimeChange() {
-    const ts = document.getElementById('f-time').value;
-    const disp = document.getElementById('schedule-cal-selected');
-    if (ts) {
-      disp.textContent = ts + ' – ' + addMinutes(ts, 40);
-      disp.style.color = 'var(--green)';
-    } else {
-      disp.textContent = 'לא נבחרה שעה';
-      disp.style.color = 'var(--muted)';
-    }
-    updateScheduleCalendar();
   }
 
   function saveMeeting() {
