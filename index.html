@@ -3444,8 +3444,22 @@ body { padding-bottom: 70px; }
       </div>`;
     }
 
-    // slots פנויים בקפיצות 40 דקות — כפתורים לחיצים
+    // בנה רשימת slots: גריד סטנדרטי + צמוד לכל לקוח קיים
+    const slotSet = new Set();
     for (let min = DAY_START * 60; min + TREAT_MIN <= DAY_END * 60; min += TREAT_MIN) {
+      slotSet.add(min);
+    }
+    occupiedMins.forEach(o => {
+      const after = o + TREAT_MIN;
+      const before = o - TREAT_MIN;
+      if (after + TREAT_MIN <= DAY_END * 60) slotSet.add(after);
+      if (before >= DAY_START * 60) slotSet.add(before);
+    });
+    const allSlots = [...slotSet].sort((a, b) => a - b);
+
+    // הצג slots פנויים — כפתורים לחיצים
+    allSlots.forEach(min => {
+      if (min < DAY_START * 60 || min + TREAT_MIN > DAY_END * 60) return;
       const minFromStart = min - DAY_START * 60;
       const top = Math.round(minFromStart * HOUR_H / 60);
       const h = Math.floor(min / 60), m = min % 60;
@@ -3462,7 +3476,7 @@ body { padding-bottom: 70px; }
           <span style="font-size:11px;color:var(--muted);">${ts}</span>
         </div>`;
       }
-    }
+    });
 
     // לקוחות קיימים (מעל הכל)
     sameDayClients.forEach(c => {
