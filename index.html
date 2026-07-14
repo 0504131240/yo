@@ -983,6 +983,24 @@ body { padding-bottom: 70px; }
   from { opacity:0; transform:translateX(-40px); }
   to   { opacity:1; transform:translateX(0); }
 }
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.client-row {
+  background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+  padding:14px 18px;margin-bottom:8px;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  transition:box-shadow 0.15s, background 0.15s;
+}
+.client-row:hover { box-shadow:var(--shadow-lg); background:var(--surface); }
+.detail-btn {
+  width:100%;padding:13px;border:none;border-radius:10px;
+  font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:opacity 0.15s;
+}
+.detail-btn:hover { opacity:0.85; }
 
 
 
@@ -1289,6 +1307,16 @@ body { padding-bottom: 70px; }
       <div id="docs-subtitle" style="font-size:12px;color:var(--muted);"></div>
     </div>
     <div id="docs-body" style="flex:1;overflow-y:auto;padding:16px 20px;"></div>
+  </div>
+</div>
+
+<div id="clientDetailOverlay" onclick="closeClientDetailOnOverlay(event)" style="position:fixed;inset:0;background:rgba(15,30,70,0.55);backdrop-filter:blur(6px);z-index:210;display:none;align-items:flex-end;justify-content:center;">
+  <div id="clientDetailModal" style="background:var(--surface);width:100%;max-width:600px;max-height:85vh;display:flex;flex-direction:column;border-radius:24px 24px 0 0;box-shadow:0 -8px 40px rgba(30,50,100,0.18);animation:slideUp 0.3s ease;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-weight:800;font-size:16px;">פרטי לקוח</div>
+      <button onclick="closeClientDetail()" style="width:32px;height:32px;border:1px solid var(--border);background:var(--bg);border-radius:8px;font-size:16px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+    <div id="client-detail-body" style="flex:1;overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -2027,40 +2055,105 @@ body { padding-bottom: 70px; }
     }
 
     list.innerHTML = filtered.map(c => {
-      const clientTreatments = treatments.filter(t => t.clientId === c.id);
-      const totalPaid = clientTreatments.filter(t => t.status === 'paid').reduce((s,t) => s + (t.amount||0), 0);
-      const unpaidCount = clientTreatments.filter(t => t.status === 'unpaid').length;
+      const unpaidAmount = treatments
+        .filter(t => t.clientId === c.id && t.status === 'unpaid')
+        .reduce((s,t) => s + (t.amount||0), 0);
       return `
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:10px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='var(--shadow-lg)'" onmouseout="this.style.boxShadow='none'">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-          <div style="min-width:0;">
-            <div style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.name)}</div>
-            ${c.phone ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">📞 ${String(c.phone).startsWith('0') ? '' : '0'}${esc(c.phone)}</div>` : '<div style="font-size:12px;color:var(--muted);margin-top:2px;">אין טלפון</div>'}${c.tz ? `<div style="font-size:12px;color:var(--muted);">🪪 ${esc(c.tz)}</div>` : ''}
-              <div style="margin-top:4px;display:flex;align-items:center;gap:6px;">
-                ${c.active === 'inactive'
-                  ? '<span style="background:var(--surface2);color:var(--muted);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">⏸️ לא פעיל</span>'
-                  : '<span style="background:var(--green-light);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">✅ פעיל</span>'
-                    + (c.scheduleDay !== undefined ? '<span style="font-size:11px;color:var(--muted);margin-right:4px;">יום ' + ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][c.scheduleDay] + ' ' + esc(c.scheduleTime || '') + '</span>' : '')
-                }
-              </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-            ${unpaidCount > 0 ? `<span style="background:var(--red-light);color:var(--red);font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;">חוב: ${unpaidCount} טיפולים</span>` : ''}
-            <button onclick="editClientFromPanel(${c.id})" title="עריכה" style="width:34px;height:34px;border:1px solid var(--border);background:var(--surface);border-radius:8px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='var(--accent-light)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">✏️</button>
-            <button onclick="deletePanelClient(${c.id})" title="מחיקה" style="width:34px;height:34px;border:1px solid var(--border);background:var(--surface);border-radius:8px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--red)';this.style.background='var(--red-light)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">🗑️</button>
-          </div>
-        </div>
-        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:16px;">
-          <div style="font-size:12px;color:var(--muted);">סה"כ טיפולים: <span style="font-weight:700;color:var(--text);">${clientTreatments.length}</span></div>
-          <div style="font-size:12px;color:var(--muted);">שולם: <span style="font-weight:700;color:var(--green);">₪${totalPaid.toLocaleString()}</span></div>
-          <div style="margin-right:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-<button onclick="openPatientHistory(${c.id})" style="font-size:11px;color:white;font-weight:700;background:var(--green);border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:4px 10px;border-radius:6px;">📋 היסטוריה</button>
-            <button onclick="openDocumentsModal(${c.id})" style="font-size:11px;color:white;font-weight:700;background:#7c6ef7;border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:4px 10px;border-radius:6px;">📄 מסמכים</button>
-            <button onclick="openPaymentModalForClient(${c.id})" style="font-size:11px;color:white;font-weight:700;background:var(--green);border:none;cursor:pointer;font-family:'Heebo',sans-serif;padding:4px 10px;border-radius:6px;">+ תשלום חדש</button>
-          </div>
+      <div class="client-row" onclick="openClientDetail(${c.id})">
+        <div style="font-weight:700;font-size:15px;">${esc(c.name)}</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+          ${unpaidAmount > 0 ? `<span style="background:var(--red-light);color:var(--red);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">חוב ₪${unpaidAmount.toLocaleString()}</span>` : ''}
+          <span style="color:var(--muted);font-size:20px;line-height:1;">›</span>
         </div>
       </div>`;
     }).join('');
+  }
+
+  let currentDetailClientId = null;
+
+  function openClientDetail(id) {
+    currentDetailClientId = id;
+    const c = clients.find(x => x.id === id);
+    if (!c) return;
+    const clientTreatments = treatments.filter(t => t.clientId === id);
+    const unpaidAmount = clientTreatments.filter(t => t.status === 'unpaid').reduce((s,t) => s + (t.amount||0), 0);
+    const totalPaid = clientTreatments.filter(t => t.status === 'paid').reduce((s,t) => s + (t.amount||0), 0);
+    const schedDays = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
+    document.getElementById('client-detail-body').innerHTML = `
+      <div style="padding:20px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-size:1.25rem;font-weight:800;margin-bottom:6px;">${esc(c.name)}</div>
+            ${c.phone ? `<div style="font-size:13px;color:var(--muted);margin-bottom:3px;">📞 ${esc(c.phone)}</div>` : ''}
+            ${c.tz ? `<div style="font-size:13px;color:var(--muted);margin-bottom:3px;">🪪 ${esc(c.tz)}</div>` : ''}
+            ${c.scheduleDay !== undefined ? `<div style="font-size:13px;color:var(--muted);">📅 יום ${schedDays[c.scheduleDay]} ${esc(c.scheduleTime||'')}</div>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            ${c.active === 'inactive'
+              ? '<span style="background:var(--surface2);color:var(--muted);padding:3px 10px;border-radius:10px;font-size:12px;font-weight:700;">⏸️ לא פעיל</span>'
+              : '<span style="background:var(--green-light);color:var(--green);padding:3px 10px;border-radius:10px;font-size:12px;font-weight:700;">✅ פעיל</span>'}
+            ${unpaidAmount > 0 ? `<span style="background:var(--red-light);color:var(--red);padding:3px 10px;border-radius:10px;font-size:12px;font-weight:700;">חוב ₪${unpaidAmount.toLocaleString()}</span>` : ''}
+          </div>
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:20px;">
+          <div style="font-size:12px;color:var(--muted);">טיפולים: <b style="color:var(--text);">${clientTreatments.length}</b></div>
+          <div style="font-size:12px;color:var(--muted);">שולם: <b style="color:var(--green);">₪${totalPaid.toLocaleString()}</b></div>
+        </div>
+      </div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;">
+        <button class="detail-btn" onclick="editClientFromDetail(${c.id})" style="background:var(--accent);color:white;">✏️ עריכת פרטים</button>
+        <button class="detail-btn" onclick="openPatientHistoryFromDetail(${c.id})" style="background:var(--green);color:white;">📋 היסטוריה וטיפולים</button>
+        <button class="detail-btn" onclick="openDocsFromDetail(${c.id})" style="background:#7c6ef7;color:white;">📄 מסמכים</button>
+        <button class="detail-btn" onclick="openPaymentFromDetail(${c.id})" style="background:var(--green-light);color:var(--green);border:1px solid var(--green);">💰 הוספת תשלום</button>
+        <button class="detail-btn" onclick="deletePanelClientFromDetail(${c.id})" style="background:var(--red-light);color:var(--red);border:1px solid var(--red);">🗑️ מחיקת לקוח</button>
+      </div>`;
+    document.getElementById('clientDetailOverlay').style.display = 'flex';
+  }
+
+  function closeClientDetail() {
+    document.getElementById('clientDetailOverlay').style.display = 'none';
+  }
+
+  function closeClientDetailOnOverlay(e) {
+    if (e.target === document.getElementById('clientDetailOverlay')) closeClientDetail();
+  }
+
+  function editClientFromDetail(id) {
+    closeClientDetail();
+    returnToPanel = true;
+    closeClientsPanel();
+    openModal(id);
+  }
+
+  function openPatientHistoryFromDetail(id) {
+    closeClientDetail();
+    openPatientHistory(id);
+  }
+
+  function openDocsFromDetail(id) {
+    closeClientDetail();
+    openDocumentsModal(id);
+  }
+
+  function openPaymentFromDetail(id) {
+    closeClientDetail();
+    openPaymentModalForClient(id);
+  }
+
+  function deletePanelClientFromDetail(id) {
+    const c = clients.find(x => x.id === id);
+    const count = treatments.filter(t => t.clientId === id).length;
+    const msg = count > 0
+      ? `למחוק את ${c.name} וכל ${count} הטיפולים שלו?`
+      : `למחוק את ${c.name}?`;
+    if (!confirm(msg)) return;
+    clients = clients.filter(cl => cl.id !== id);
+    treatments = treatments.filter(t => t.clientId !== id);
+    save();
+    render();
+    closeClientDetail();
+    renderClientsPanel();
   }
 
   function deletePanelClient(id) {
