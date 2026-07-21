@@ -782,7 +782,7 @@ body { padding-bottom: 70px; }
         <tr>
           <th>לקוח</th>
           <th>תאריך טיפול</th>
-          <th>הערות</th>
+          <th>סיכום</th>
           <th>סכום</th>
           <th>סטטוס תשלום</th>
           <th>תאריך תשלום</th>
@@ -843,8 +843,15 @@ body { padding-bottom: 70px; }
       </div>
 
       <div class="form-row">
-        <label>הערות</label>
-        <textarea id="mf-notes" placeholder="פרטים נוספים על הטיפול..."></textarea>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label style="margin-bottom:0;">סיכום טיפול</label>
+          <div style="display:flex;gap:6px;">
+            <button type="button" id="mic-btn-mf-notes" onclick="toggleSpeech('mf-notes')" style="padding:5px 10px;border:none;border-radius:8px;background:var(--accent-light);color:var(--accent);font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">🎙 תמלל</button>
+            <button type="button" onclick="document.getElementById('mf-notes').value=''" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--muted);font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer;">✕</button>
+          </div>
+        </div>
+        <textarea id="mf-notes" placeholder="תאר מה היה בטיפול..." rows="5" style="resize:vertical;"></textarea>
+        <div id="mic-status-mf-notes" style="font-size:11px;color:var(--red);margin-top:4px;display:none;">● מקליט... לחץ שוב לעצירה</div>
       </div>
 
       <div style="display:flex;gap:10px;margin-top:8px;">
@@ -946,8 +953,15 @@ body { padding-bottom: 70px; }
       </div>
 
       <div class="form-row">
-        <label>הערות</label>
-        <textarea id="f-notes" placeholder="פרטים נוספים על הטיפול..."></textarea>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label style="margin-bottom:0;">סיכום טיפול</label>
+          <div style="display:flex;gap:6px;">
+            <button type="button" id="mic-btn-f-notes" onclick="toggleSpeech('f-notes')" style="padding:5px 10px;border:none;border-radius:8px;background:var(--accent-light);color:var(--accent);font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">🎙 תמלל</button>
+            <button type="button" onclick="document.getElementById('f-notes').value=''" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--muted);font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer;">✕</button>
+          </div>
+        </div>
+        <textarea id="f-notes" placeholder="תאר מה היה בטיפול..." rows="5" style="resize:vertical;"></textarea>
+        <div id="mic-status-f-notes" style="font-size:11px;color:var(--red);margin-top:4px;display:none;">● מקליט... לחץ שוב לעצירה</div>
       </div>
     </div>
 
@@ -989,6 +1003,10 @@ body { padding-bottom: 70px; }
 @keyframes slideUp {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
+}
+@keyframes micPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.95); }
 }
 .client-row {
   background:var(--surface2);border:1px solid var(--border);border-radius:12px;
@@ -3426,6 +3444,61 @@ body { padding-bottom: 70px; }
     document.getElementById('meetingStep1').style.display = 'block';
     document.getElementById('meetingStep2').style.display = 'none';
   }
+
+  // ─── Speech transcription ────────────────────────────────────────────────
+  let _speechRec = null;
+  let _speechTarget = null;
+  let _speechFinal = '';
+
+  function toggleSpeech(targetId) {
+    if (_speechRec && _speechTarget === targetId) {
+      _speechRec.stop();
+      return;
+    }
+    if (_speechRec) _speechRec.stop();
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert('הדפדפן לא תומך בתמלול קולי.\nנסה ב-Chrome.'); return; }
+
+    _speechTarget = targetId;
+    _speechFinal = document.getElementById(targetId).value;
+    if (_speechFinal && !_speechFinal.endsWith(' ')) _speechFinal += ' ';
+
+    const rec = new SR();
+    rec.lang = 'he-IL';
+    rec.continuous = true;
+    rec.interimResults = true;
+    _speechRec = rec;
+
+    rec.onstart = () => {
+      const btn = document.getElementById('mic-btn-' + targetId);
+      const status = document.getElementById('mic-status-' + targetId);
+      if (btn) { btn.innerHTML = '⏹ עצור'; btn.style.background = 'var(--red)'; btn.style.color = '#fff'; btn.style.animation = 'micPulse 1s infinite'; }
+      if (status) status.style.display = 'block';
+    };
+
+    rec.onresult = e => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) _speechFinal += e.results[i][0].transcript + ' ';
+        else interim += e.results[i][0].transcript;
+      }
+      document.getElementById(targetId).value = _speechFinal + interim;
+    };
+
+    rec.onend = () => {
+      _speechRec = null;
+      document.getElementById(targetId).value = _speechFinal.trim();
+      const btn = document.getElementById('mic-btn-' + targetId);
+      const status = document.getElementById('mic-status-' + targetId);
+      if (btn) { btn.innerHTML = '🎙 תמלל'; btn.style.background = 'var(--accent-light)'; btn.style.color = 'var(--accent)'; btn.style.animation = ''; }
+      if (status) status.style.display = 'none';
+    };
+
+    rec.onerror = () => rec.stop();
+    rec.start();
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   function addMinutes(timeStr, mins) {
     const [h, m] = timeStr.split(':').map(Number);
