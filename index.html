@@ -1358,7 +1358,7 @@ body { padding-bottom: 70px; }
     <div class="form-row" style="margin-bottom:16px;">
       <label>מפתח API של Claude</label>
       <div style="display:flex;gap:8px;align-items:center;">
-        <input type="password" id="ai-key-input" placeholder="sk-ant-..." style="flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;background:var(--bg);color:var(--text);">
+        <input type="text" id="ai-key-input" placeholder="sk-ant-api03-..." dir="ltr" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:monospace;font-size:13px;background:var(--bg);color:var(--text);direction:ltr;">
         <button onclick="toggleKeyVisibility()" id="key-toggle-btn" style="padding:10px 12px;border:1px solid var(--border);background:var(--bg);border-radius:10px;cursor:pointer;font-size:15px;">👁</button>
       </div>
     </div>
@@ -3498,7 +3498,16 @@ body { padding-bottom: 70px; }
 
   function toggleKeyVisibility() {
     const inp = document.getElementById('ai-key-input');
-    inp.type = inp.type === 'password' ? 'text' : 'password';
+    const btn = document.getElementById('key-toggle-btn');
+    if (inp.style.webkitTextSecurity === 'disc' || inp.style['-webkit-text-security'] === 'disc') {
+      inp.style.webkitTextSecurity = '';
+      inp.style['-webkit-text-security'] = '';
+      btn.textContent = '👁';
+    } else {
+      inp.style.webkitTextSecurity = 'disc';
+      inp.style['-webkit-text-security'] = 'disc';
+      btn.textContent = '🙈';
+    }
   }
 
   function saveAIKey() {
