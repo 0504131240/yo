@@ -830,17 +830,18 @@ body { padding-bottom: 70px; }
         </div>
       </div>
 
-      <div class="form-row">
-        <label>סטטוס תשלום</label>
-        <select id="mf-status" onchange="autoFillPayDate('mf-paydate', this.value)">
-          <option value="unpaid">לא שולם</option>
-          <option value="paid">שולם</option>
-        </select>
-      </div>
-
-      <div class="form-row">
-        <label>תאריך תשלום</label>
-        <input type="date" id="mf-paydate">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>סטטוס תשלום</label>
+          <select id="mf-status" onchange="autoFillPayDate('mf-paydate', this.value)">
+            <option value="unpaid">לא שולם</option>
+            <option value="paid">שולם</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>תאריך תשלום</label>
+          <input type="date" id="mf-paydate">
+        </div>
       </div>
 
       <div class="form-row">
@@ -941,17 +942,18 @@ body { padding-bottom: 70px; }
         </div>
       </div>
 
-      <div class="form-row">
-        <label>סטטוס תשלום</label>
-        <select id="f-status" onchange="autoFillPayDate('f-paydate', this.value)">
-          <option value="unpaid">לא שולם</option>
-          <option value="paid">שולם</option>
-        </select>
-      </div>
-
-      <div class="form-row">
-        <label>תאריך תשלום</label>
-        <input type="date" id="f-paydate">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>סטטוס תשלום</label>
+          <select id="f-status" onchange="autoFillPayDate('f-paydate', this.value)">
+            <option value="unpaid">לא שולם</option>
+            <option value="paid">שולם</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>תאריך תשלום</label>
+          <input type="date" id="f-paydate">
+        </div>
       </div>
 
       <div class="form-row">
