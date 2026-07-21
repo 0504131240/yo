@@ -2900,20 +2900,24 @@ body { padding-bottom: 70px; }
         } else if (d.fileName) {
           fileBtns = `<span style="font-size:11px;color:var(--muted);margin-top:4px;display:block;">📎 ${esc(d.fileName)} <span style="color:var(--red);">(לא זמין במכשיר זה)</span></span>`;
         }
-        html += `<div class="doc-item">
+        const isAiSum = d.type === 'סיכום AI';
+        html += `<div class="doc-item"${isAiSum ? ` onclick="toggleAiDoc('${d.id}')" style="cursor:pointer;"` : ''}>
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
             <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;font-size:14px;margin-bottom:5px;">${icon} ${esc(d.title)}</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="font-weight:700;font-size:14px;margin-bottom:5px;">${icon} ${esc(d.title)}</div>
+                ${isAiSum ? `<span id="ai-doc-arrow-${d.id}" style="font-size:12px;color:var(--muted);transition:transform 0.2s;">▼</span>` : ''}
+              </div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 <span class="doc-type-badge">${esc(d.type)}</span>
                 ${d.date ? `<span style="font-size:12px;color:var(--muted);">📅 ${d.date.split('-').reverse().join('/')}</span>` : ''}
               </div>
-              ${d.notes ? (d.type === 'סיכום AI'
-                ? `<div style="font-size:13px;color:var(--text);margin-top:8px;line-height:1.7;white-space:pre-wrap;border-top:1px solid var(--border);padding-top:8px;">${esc(d.notes)}</div>`
+              ${d.notes ? (isAiSum
+                ? `<div id="ai-doc-${d.id}" style="display:none;font-size:13px;color:var(--text);margin-top:8px;line-height:1.7;white-space:pre-wrap;border-top:1px solid var(--border);padding-top:8px;">${esc(d.notes)}</div>`
                 : `<div style="font-size:12px;color:var(--muted);margin-top:5px;">💬 ${esc(d.notes)}</div>`) : ''}
               ${fileBtns}
             </div>
-            <button onclick="deleteDocument('${d.id}')" style="width:30px;height:30px;flex-shrink:0;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--muted);font-size:14px;" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🗑️</button>
+            <button onclick="event.stopPropagation();deleteDocument('${d.id}')" style="width:30px;height:30px;flex-shrink:0;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--muted);font-size:14px;" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🗑️</button>
           </div>
         </div>`;
       });
@@ -2930,6 +2934,15 @@ body { padding-bottom: 70px; }
   function toggleAddDocForm() {
     const f = document.getElementById('add-doc-form');
     if (f) f.style.display = f.style.display === 'none' ? '' : 'none';
+  }
+
+  function toggleAiDoc(docId) {
+    const body = document.getElementById('ai-doc-' + docId);
+    const arrow = document.getElementById('ai-doc-arrow-' + docId);
+    if (!body) return;
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
   }
 
   function viewDocument(docId, fileName) {
