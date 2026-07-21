@@ -664,6 +664,7 @@ body { padding-bottom: 70px; }
   <div style="display:flex;align-items:center;gap:8px;">
     <span id="sync-status" style="font-size:12px;color:var(--muted);transition:opacity 0.5s;white-space:nowrap;"></span>
     <button onclick="load()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;" title="רענן">🔄</button>
+    <button onclick="openAISettings()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;" title="הגדרות AI" id="ai-settings-btn">⚙️</button>
     <!-- Desktop only buttons -->
     <div class="desktop-nav-btns" style="display:flex;gap:8px;">
       <button class="btn-add" style="background:linear-gradient(135deg,#34c97b,#28a062);box-shadow:0 4px 12px rgba(52,201,123,0.25);padding:9px 16px;font-size:13px;" onclick="openMeetingModal()">➕ טיפול חדש</button>
@@ -847,6 +848,7 @@ body { padding-bottom: 70px; }
           <label style="margin-bottom:0;">סיכום טיפול</label>
           <div style="display:flex;gap:6px;">
             <button type="button" id="mic-btn-mf-notes" onclick="toggleSpeech('mf-notes')" style="padding:5px 10px;border:none;border-radius:8px;background:var(--accent-light);color:var(--accent);font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">🎙 תמלל</button>
+            <button type="button" onclick="summarizeWithAI('mf-notes')" style="padding:5px 10px;border:none;border-radius:8px;background:linear-gradient(135deg,#7c6ef7,#5c4fd6);color:#fff;font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">✨ סכם</button>
             <button type="button" onclick="document.getElementById('mf-notes').value=''" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--muted);font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer;">✕</button>
           </div>
         </div>
@@ -957,6 +959,7 @@ body { padding-bottom: 70px; }
           <label style="margin-bottom:0;">סיכום טיפול</label>
           <div style="display:flex;gap:6px;">
             <button type="button" id="mic-btn-f-notes" onclick="toggleSpeech('f-notes')" style="padding:5px 10px;border:none;border-radius:8px;background:var(--accent-light);color:var(--accent);font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">🎙 תמלל</button>
+            <button type="button" onclick="summarizeWithAI('f-notes')" style="padding:5px 10px;border:none;border-radius:8px;background:linear-gradient(135deg,#7c6ef7,#5c4fd6);color:#fff;font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">✨ סכם</button>
             <button type="button" onclick="document.getElementById('f-notes').value=''" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--muted);font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer;">✕</button>
           </div>
         </div>
@@ -1338,6 +1341,30 @@ body { padding-bottom: 70px; }
       <button onclick="closeClientDetail()" style="width:32px;height:32px;border:1px solid var(--border);background:var(--bg);border-radius:8px;font-size:16px;cursor:pointer;color:var(--muted);">✕</button>
     </div>
     <div id="client-detail-body" style="flex:1;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- AI SETTINGS -->
+<div id="aiSettingsOverlay" onclick="closeAISettingsOnOverlay(event)" style="position:fixed;inset:0;background:rgba(15,30,70,0.6);backdrop-filter:blur(6px);z-index:400;display:none;align-items:flex-end;justify-content:center;">
+  <div style="background:var(--surface);width:100%;max-width:540px;border-radius:24px 24px 0 0;box-shadow:0 -8px 40px rgba(30,50,100,0.18);animation:slideUp 0.3s ease;padding:24px 24px 32px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="font-weight:800;font-size:17px;">✨ הגדרות בינה מלאכותית</div>
+      <button onclick="closeAISettings()" style="width:32px;height:32px;border:1px solid var(--border);background:var(--bg);border-radius:8px;font-size:16px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;">
+      הזן מפתח API של Claude (Anthropic) לקבלת סיכומי טיפול חכמים.<br>
+      ניתן לקבל מפתח בחינם בכתובת <strong>console.anthropic.com</strong>
+    </div>
+    <div class="form-row" style="margin-bottom:16px;">
+      <label>מפתח API של Claude</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="password" id="ai-key-input" placeholder="sk-ant-..." style="flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;background:var(--bg);color:var(--text);">
+        <button onclick="toggleKeyVisibility()" id="key-toggle-btn" style="padding:10px 12px;border:1px solid var(--border);background:var(--bg);border-radius:10px;cursor:pointer;font-size:15px;">👁</button>
+      </div>
+    </div>
+    <div id="ai-key-status" style="font-size:12px;margin-bottom:16px;display:none;"></div>
+    <button onclick="saveAIKey()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-family:'Heebo',sans-serif;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px;">שמור מפתח</button>
+    <button onclick="clearAIKey()" style="width:100%;padding:10px;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:12px;font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;">מחק מפתח שמור</button>
   </div>
 </div>
 
@@ -3445,6 +3472,115 @@ body { padding-bottom: 70px; }
     document.getElementById('meetingStep2').style.display = 'none';
   }
 
+  // ─── AI Settings ─────────────────────────────────────────────────────────
+  function openAISettings() {
+    const stored = localStorage.getItem('ai_claude_key') || '';
+    document.getElementById('ai-key-input').value = stored ? '•'.repeat(20) : '';
+    document.getElementById('ai-key-input').dataset.filled = stored ? '1' : '';
+    const status = document.getElementById('ai-key-status');
+    status.style.display = stored ? 'block' : 'none';
+    status.textContent = stored ? '✅ מפתח שמור' : '';
+    status.style.color = 'var(--green)';
+    document.getElementById('aiSettingsOverlay').style.display = 'flex';
+  }
+
+  function closeAISettings() {
+    document.getElementById('aiSettingsOverlay').style.display = 'none';
+  }
+
+  function closeAISettingsOnOverlay(e) {
+    if (e.target === document.getElementById('aiSettingsOverlay')) closeAISettings();
+  }
+
+  function toggleKeyVisibility() {
+    const inp = document.getElementById('ai-key-input');
+    if (inp.type === 'password') { inp.type = 'text'; }
+    else { inp.type = 'password'; }
+  }
+
+  function saveAIKey() {
+    const inp = document.getElementById('ai-key-input');
+    const val = inp.value.trim();
+    if (!val || val.startsWith('•')) {
+      const status = document.getElementById('ai-key-status');
+      status.style.display = 'block';
+      status.textContent = localStorage.getItem('ai_claude_key') ? '✅ מפתח קיים לא שונה' : '⚠️ נא להזין מפתח';
+      status.style.color = localStorage.getItem('ai_claude_key') ? 'var(--green)' : 'var(--yellow)';
+      return;
+    }
+    localStorage.setItem('ai_claude_key', val);
+    const status = document.getElementById('ai-key-status');
+    status.style.display = 'block';
+    status.textContent = '✅ נשמר בהצלחה';
+    status.style.color = 'var(--green)';
+    inp.value = '•'.repeat(20);
+    inp.dataset.filled = '1';
+    updateAISettingsIcon();
+    setTimeout(closeAISettings, 900);
+  }
+
+  function clearAIKey() {
+    localStorage.removeItem('ai_claude_key');
+    document.getElementById('ai-key-input').value = '';
+    document.getElementById('ai-key-input').dataset.filled = '';
+    const status = document.getElementById('ai-key-status');
+    status.style.display = 'block';
+    status.textContent = 'מפתח נמחק';
+    status.style.color = 'var(--muted)';
+    updateAISettingsIcon();
+  }
+
+  function updateAISettingsIcon() {
+    const btn = document.getElementById('ai-settings-btn');
+    if (!btn) return;
+    btn.title = localStorage.getItem('ai_claude_key') ? 'הגדרות AI (מופעל ✓)' : 'הגדרות AI';
+    btn.style.borderColor = localStorage.getItem('ai_claude_key') ? 'var(--accent)' : '';
+  }
+
+  async function summarizeWithAI(targetId) {
+    const key = localStorage.getItem('ai_claude_key');
+    if (!key) {
+      openAISettings();
+      return;
+    }
+    const ta = document.getElementById(targetId);
+    const rawText = ta.value.trim();
+    if (!rawText) { alert('אין טקסט לסיכום — תמלל קודם או הקלד את מה שהיה בטיפול.'); return; }
+
+    const sumBtn = [...document.querySelectorAll('button')].find(b => b.onclick && b.getAttribute('onclick') === `summarizeWithAI('${targetId}')`);
+    const originalLabel = sumBtn ? sumBtn.innerHTML : '';
+    if (sumBtn) { sumBtn.innerHTML = '⏳ מסכם...'; sumBtn.disabled = true; }
+
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 500,
+          system: 'אתה מסייע לכתיבת סיכומי טיפולים. קבל את תיאור הגולמי של מה שהיה בטיפול ותן סיכום קצר ומובנה בעברית. כתוב בסגנון מקצועי, בגוף שלישי, בפסקה אחת או שתיים קצרות. אל תוסיף כותרות — רק טקסט רציף.',
+          messages: [{ role: 'user', content: rawText }],
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error?.message || `שגיאה ${resp.status}`);
+      }
+      const data = await resp.json();
+      ta.value = data.content?.[0]?.text?.trim() || rawText;
+    } catch (e) {
+      alert('שגיאה בסיכום AI:\n' + e.message + '\n\nבדוק שהמפתח תקין בהגדרות ⚙️');
+    } finally {
+      if (sumBtn) { sumBtn.innerHTML = originalLabel; sumBtn.disabled = false; }
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // ─── Speech transcription ────────────────────────────────────────────────
   let _speechRec = null;
   let _speechTarget = null;
@@ -3671,6 +3807,7 @@ body { padding-bottom: 70px; }
   }
 
   load();
+  updateAISettingsIcon();
 </script>
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
