@@ -1303,8 +1303,7 @@ body { padding-bottom: 70px; }
       </div>
       <div id="ph-subtitle" style="font-size:12px;color:var(--muted);margin-bottom:12px;"></div>
       <div style="display:flex;gap:8px;">
-        <button id="ph-tab-treatments" onclick="switchPhTab('treatments')" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:#7c6ef7;color:white;">📋 טיפולים</button>
-        <button id="ph-tab-payments" onclick="switchPhTab('payments')" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:var(--border);color:var(--text);">💳 תשלומים</button>
+        <button id="ph-tab-treatments" style="padding:6px 16px;border-radius:20px;border:none;cursor:default;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:#7c6ef7;color:white;">💊 טיפולים</button>
       </div>
     </div>
     <div class="ph-body" id="ph-body"></div>
@@ -2551,7 +2550,7 @@ body { padding-bottom: 70px; }
       document.getElementById('pm-summary-wrap').style.display = 'none';
       return;
     }
-    const unpaid = treatments.filter(t => String(t.clientId) === String(clientId) && (t.status === 'unpaid' || t.status === 'cancelled'));
+    const unpaid = treatments.filter(t => String(t.clientId) === String(clientId) && (t.status === 'unpaid' || t.status === 'cancelled') && (t.amount || 0) > 0);
     const list = document.getElementById('pm-treatments-list');
 
     if (unpaid.length === 0) {
