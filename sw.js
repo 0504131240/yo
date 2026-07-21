@@ -1,4 +1,4 @@
-const CACHE = 'yo-v6';
+const CACHE = 'yo-v7';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.add('./')));

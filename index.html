@@ -2724,19 +2724,7 @@ body { padding-bottom: 70px; }
     const totalPaid = clientTreatments.filter(t => t.status === 'paid').reduce((s, t) => s + (t.amount || 0), 0);
     const totalUnpaid = clientTreatments.filter(t => t.status === 'unpaid').reduce((s, t) => s + (t.amount || 0), 0);
 
-    const c = clients.find(x => x.id === clientId);
-    const savedSummary = c && c.aiSummary;
-
-    let html = savedSummary ? `
-      <div style="margin:0 0 14px;padding:14px 16px;background:linear-gradient(135deg,rgba(124,110,247,0.08),rgba(92,79,214,0.05));border:1px solid rgba(124,110,247,0.25);border-radius:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div style="font-size:12px;font-weight:700;color:var(--accent);">✨ סיכום AI${c.aiSummaryDate ? ' · ' + formatDate(c.aiSummaryDate) : ''}</div>
-          <button onclick="deleteClientAISummary()" style="background:none;border:none;font-size:12px;color:var(--muted);cursor:pointer;padding:2px 6px;">מחק</button>
-        </div>
-        <div style="font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap;">${esc(savedSummary)}</div>
-      </div>` : '';
-
-    html += `
+    let html = `
       <div class="ph-totals">
         <div class="ph-total-item"><strong>${clientTreatments.length}</strong>סה"כ טיפולים</div>
         <div class="ph-total-item"><strong style="color:var(--green);">₪${totalPaid.toLocaleString()}</strong>שולם</div>
@@ -2861,7 +2849,7 @@ body { padding-bottom: 70px; }
     if (!c) return;
     const docs = (c.documents || []).slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
     const today = new Date().toISOString().split('T')[0];
-    const typeIcon = { הסכם:'📝', אבחון:'🔍', דוח:'📊', הפנייה:'📋', שונות:'📎' };
+    const typeIcon = { הסכם:'📝', אבחון:'🔍', דוח:'📊', הפנייה:'📋', שונות:'📎', 'סיכום AI':'✨' };
     const iS = 'width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:\'Heebo\',sans-serif;font-size:14px;outline:none;background:var(--bg);box-sizing:border-box;';
 
     let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
@@ -2920,7 +2908,9 @@ body { padding-bottom: 70px; }
                 <span class="doc-type-badge">${esc(d.type)}</span>
                 ${d.date ? `<span style="font-size:12px;color:var(--muted);">📅 ${d.date.split('-').reverse().join('/')}</span>` : ''}
               </div>
-              ${d.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:5px;">💬 ${esc(d.notes)}</div>` : ''}
+              ${d.notes ? (d.type === 'סיכום AI'
+                ? `<div style="font-size:13px;color:var(--text);margin-top:8px;line-height:1.7;white-space:pre-wrap;border-top:1px solid var(--border);padding-top:8px;">${esc(d.notes)}</div>`
+                : `<div style="font-size:12px;color:var(--muted);margin-top:5px;">💬 ${esc(d.notes)}</div>`) : ''}
               ${fileBtns}
             </div>
             <button onclick="deleteDocument('${d.id}')" style="width:30px;height:30px;flex-shrink:0;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--muted);font-size:14px;" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🗑️</button>
@@ -3823,29 +3813,27 @@ body { padding-bottom: 70px; }
     }
   }
 
-  function deleteClientAISummary() {
-    const c = clients.find(x => x.id === currentPhClientId);
-    if (!c) return;
-    delete c.aiSummary;
-    delete c.aiSummaryDate;
-    save();
-    renderPhTreatments();
-  }
-
   function saveAISummaryToClient() {
     const text = document.getElementById('ai-preview-text').textContent;
     const clientId = currentPhClientId;
     const c = clients.find(x => x.id === clientId);
     if (!c) return;
-    c.aiSummary = text;
-    c.aiSummaryDate = new Date().toISOString().slice(0, 10);
+    if (!c.documents) c.documents = [];
+    const today = new Date().toISOString().slice(0, 10);
+    c.documents.push({
+      id: Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      title: 'סיכום AI',
+      type: 'סיכום AI',
+      date: today,
+      notes: text,
+      fileName: '',
+    });
     save();
     const btn = document.getElementById('ai-preview-save-btn');
     btn.textContent = '✓ נשמר!';
     setTimeout(() => {
       btn.textContent = 'שמור בתיק';
       cancelAISummary();
-      renderPhTreatments();
     }, 1200);
   }
 
