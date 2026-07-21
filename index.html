@@ -2720,7 +2720,7 @@ body { padding-bottom: 70px; }
           const isCancelled = t.status === 'cancelled';
         const isCancelledPaid = isCancelled && (t.cancelPaid || t.payDate);
           html += `
-            <div class="ph-row" style="grid-template-columns:1fr auto;${isCancelled ? 'opacity:0.7;background:rgba(220,53,69,0.06);' : ''}">
+            <div class="ph-row" onclick="editTreatmentFromHistory('${t.id}')" style="grid-template-columns:1fr auto;cursor:pointer;${isCancelled ? 'opacity:0.7;background:rgba(220,53,69,0.06);' : ''}">
               <div>
                 <div style="font-weight:600;color:${isCancelled ? 'var(--muted)' : 'var(--text)'};${isCancelled ? 'text-decoration:line-through;' : ''}">${formatDate(t.date)}</div>
 
@@ -3181,6 +3181,11 @@ body { padding-bottom: 70px; }
 
   function closePatientHistory() {
     document.getElementById('patientHistoryOverlay').classList.remove('open');
+  }
+
+  function editTreatmentFromHistory(tid) {
+    closePatientHistory();
+    openTreatmentEdit(tid);
   }
 
   function closePatientHistoryOnOverlay(e) {
