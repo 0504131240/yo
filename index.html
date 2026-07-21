@@ -372,7 +372,7 @@
     inset: 0;
     background: rgba(10,12,20,0.8);
     backdrop-filter: blur(8px);
-    z-index: 200;
+    z-index: 500;
     display: none;
     align-items: flex-start;
     justify-content: center;
@@ -2233,6 +2233,7 @@ body { padding-bottom: 70px; }
     openPaymentModalForClient(id);
   }
 
+  let _returnToHistory = false;
   let _cpanelClientId = null;
 
   function openClientPaymentsFromDetail(id) {
@@ -3184,6 +3185,7 @@ body { padding-bottom: 70px; }
   }
 
   function editTreatmentFromHistory(tid) {
+    _returnToHistory = true;
     closePatientHistory();
     openTreatmentEdit(tid);
   }
@@ -3252,6 +3254,10 @@ body { padding-bottom: 70px; }
     save();
     closeModal();
     render();
+    if (_returnToHistory && updatedT) {
+      _returnToHistory = false;
+      openPatientHistory(updatedT.clientId);
+    }
   }
 
 
