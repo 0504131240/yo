@@ -1377,6 +1377,7 @@ body { padding-bottom: 70px; }
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0;">
       <button id="ai-preview-cancel-btn" onclick="cancelAISummary()" style="flex:1;padding:13px;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:12px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;">שמור מה שרשמתי</button>
+      <button id="ai-preview-copy-btn" onclick="copyAISummary()" style="flex:1;padding:13px;background:var(--bg);color:var(--accent);border:1px solid var(--accent);border-radius:12px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;display:none;">העתק</button>
       <button id="ai-preview-apply-btn" onclick="applyAISummary()" style="flex:1;padding:13px;background:linear-gradient(135deg,#7c6ef7,#5c4fd6);color:#fff;border:none;border-radius:12px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;">החלף בסיכום AI</button>
     </div>
   </div>
@@ -3779,14 +3780,30 @@ body { padding-bottom: 70px; }
     document.getElementById('ai-preview-text').textContent = summary;
     const cancelBtn = document.getElementById('ai-preview-cancel-btn');
     const applyBtn = document.getElementById('ai-preview-apply-btn');
+    const copyBtn = document.getElementById('ai-preview-copy-btn');
     if (_aiReadOnly) {
       cancelBtn.textContent = 'סגור';
       applyBtn.style.display = 'none';
+      copyBtn.style.display = '';
+      copyBtn.textContent = 'העתק';
     } else {
       cancelBtn.textContent = 'שמור מה שרשמתי';
       applyBtn.style.display = '';
+      copyBtn.style.display = 'none';
     }
     document.getElementById('aiPreviewOverlay').style.display = 'flex';
+  }
+
+  async function copyAISummary() {
+    const text = document.getElementById('ai-preview-text').textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      const btn = document.getElementById('ai-preview-copy-btn');
+      btn.textContent = '✓ הועתק!';
+      setTimeout(() => { btn.textContent = 'העתק'; }, 2000);
+    } catch {
+      alert('לא ניתן להעתיק אוטומטית — סמן את הטקסט ידנית והעתק.');
+    }
   }
 
   function applyAISummary() {
