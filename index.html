@@ -2057,9 +2057,15 @@ body { padding-bottom: 70px; }
   function closeModal() {
     document.getElementById('modalOverlay').classList.remove('open');
     editingClientId = null;
+    const closedTreatmentId = editingTreatmentId;
     editingTreatmentId = null;
     document.getElementById('clientFields').style.display = 'block';
     document.getElementById('treatmentFields').style.display = 'none';
+    if (_returnToHistory) {
+      _returnToHistory = false;
+      const t = treatments.find(x => x.id === closedTreatmentId);
+      if (t) openPatientHistory(t.clientId);
+    }
   }
 
   function closeOnOverlay(e) {
@@ -3254,10 +3260,6 @@ body { padding-bottom: 70px; }
     save();
     closeModal();
     render();
-    if (_returnToHistory && updatedT) {
-      _returnToHistory = false;
-      openPatientHistory(updatedT.clientId);
-    }
   }
 
 
