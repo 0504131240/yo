@@ -1304,8 +1304,11 @@ body { padding-bottom: 70px; }
         <button onclick="closePatientHistory()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);line-height:1;">✕</button>
       </div>
       <div id="ph-subtitle" style="font-size:12px;color:var(--muted);margin-bottom:12px;"></div>
-      <div style="display:flex;gap:8px;">
-        <button id="ph-tab-treatments" style="padding:6px 16px;border-radius:20px;border:none;cursor:default;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:#7c6ef7;color:white;">טיפולים</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;gap:8px;">
+          <button id="ph-tab-treatments" style="padding:6px 16px;border-radius:20px;border:none;cursor:default;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:#7c6ef7;color:white;">טיפולים</button>
+        </div>
+        <button id="ph-ai-summary-btn" onclick="summarizeAllTreatments()" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;background:linear-gradient(135deg,#7c6ef7,#5c4fd6);color:white;">✨ סיכום כללי</button>
       </div>
     </div>
     <div class="ph-body" id="ph-body"></div>
@@ -1373,8 +1376,8 @@ body { padding-bottom: 70px; }
       <div id="ai-preview-text" style="font-size:14px;line-height:1.8;color:var(--text);white-space:pre-wrap;"></div>
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0;">
-      <button onclick="cancelAISummary()" style="flex:1;padding:13px;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:12px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;">שמור מה שרשמתי</button>
-      <button onclick="applyAISummary()" style="flex:1;padding:13px;background:linear-gradient(135deg,#7c6ef7,#5c4fd6);color:#fff;border:none;border-radius:12px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;">החלף בסיכום AI</button>
+      <button id="ai-preview-cancel-btn" onclick="cancelAISummary()" style="flex:1;padding:13px;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:12px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;">שמור מה שרשמתי</button>
+      <button id="ai-preview-apply-btn" onclick="applyAISummary()" style="flex:1;padding:13px;background:linear-gradient(135deg,#7c6ef7,#5c4fd6);color:#fff;border:none;border-radius:12px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;">החלף בסיכום AI</button>
     </div>
   </div>
 </div>
@@ -3678,6 +3681,56 @@ body { padding-bottom: 70px; }
   }
 
   let _aiSummaryTarget = null;
+  let _aiReadOnly = false;
+
+  async function summarizeAllTreatments() {
+    const key = localStorage.getItem('ai_claude_key');
+    if (!key) { openAISettings(); return; }
+
+    const clientId = currentPhClientId;
+    const clientTreatments = treatments
+      .filter(t => String(t.clientId) === String(clientId) && t.date && t.notes && t.notes.trim())
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    if (clientTreatments.length === 0) {
+      alert('אין סיכומי טיפולים לסכם — נסה להוסיף הערות לטיפולים תחילה.');
+      return;
+    }
+
+    const btn = document.getElementById('ph-ai-summary-btn');
+    if (btn) { btn.textContent = '⏳ מסכם...'; btn.disabled = true; }
+
+    const content = clientTreatments.map(t => `תאריך: ${t.date}\n${t.notes.trim()}`).join('\n\n---\n\n');
+
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 800,
+          system: 'אתה פסיכולוג קליני המסכם היסטוריית טיפולים. קבל רשימת סיכומי טיפולים ממוינת לפי תאריך וכתוב סיכום כולל בעברית מקצועית. הסיכום יכלול: מטרות הטיפול, נושאים מרכזיים שעלו, התקדמות שנצפתה, ומצב נוכחי. כתוב בפסקאות קצרות, בגוף שלישי, ללא כותרות — טקסט רציף בלבד.',
+          messages: [{ role: 'user', content }],
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error?.message || `שגיאה ${resp.status}`);
+      }
+      const data = await resp.json();
+      const summary = data.content?.[0]?.text?.trim();
+      if (summary) showAISummaryPreview(null, summary, true);
+    } catch (e) {
+      alert('שגיאה בסיכום AI:\n' + e.message + '\n\nבדוק שהמפתח תקין בהגדרות ⚙️');
+    } finally {
+      if (btn) { btn.textContent = '✨ סיכום כללי'; btn.disabled = false; }
+    }
+  }
 
   async function summarizeWithAI(targetId) {
     const key = localStorage.getItem('ai_claude_key');
@@ -3720,9 +3773,19 @@ body { padding-bottom: 70px; }
     }
   }
 
-  function showAISummaryPreview(targetId, summary) {
+  function showAISummaryPreview(targetId, summary, readOnly) {
     _aiSummaryTarget = targetId;
+    _aiReadOnly = !!readOnly;
     document.getElementById('ai-preview-text').textContent = summary;
+    const cancelBtn = document.getElementById('ai-preview-cancel-btn');
+    const applyBtn = document.getElementById('ai-preview-apply-btn');
+    if (_aiReadOnly) {
+      cancelBtn.textContent = 'סגור';
+      applyBtn.style.display = 'none';
+    } else {
+      cancelBtn.textContent = 'שמור מה שרשמתי';
+      applyBtn.style.display = '';
+    }
     document.getElementById('aiPreviewOverlay').style.display = 'flex';
   }
 
