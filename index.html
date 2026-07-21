@@ -3475,13 +3475,17 @@ body { padding-bottom: 70px; }
   // ─── AI Settings ─────────────────────────────────────────────────────────
   function openAISettings() {
     const stored = localStorage.getItem('ai_claude_key') || '';
-    document.getElementById('ai-key-input').value = stored ? '•'.repeat(20) : '';
-    document.getElementById('ai-key-input').dataset.filled = stored ? '1' : '';
+    document.getElementById('ai-key-input').value = '';
     const status = document.getElementById('ai-key-status');
-    status.style.display = stored ? 'block' : 'none';
-    status.textContent = stored ? '✅ מפתח שמור' : '';
-    status.style.color = 'var(--green)';
+    if (stored) {
+      status.style.display = 'block';
+      status.textContent = '✅ מפתח שמור: ' + stored.slice(0, 12) + '...';
+      status.style.color = 'var(--green)';
+    } else {
+      status.style.display = 'none';
+    }
     document.getElementById('aiSettingsOverlay').style.display = 'flex';
+    setTimeout(() => document.getElementById('ai-key-input').focus(), 100);
   }
 
   function closeAISettings() {
@@ -3494,35 +3498,31 @@ body { padding-bottom: 70px; }
 
   function toggleKeyVisibility() {
     const inp = document.getElementById('ai-key-input');
-    if (inp.type === 'password') { inp.type = 'text'; }
-    else { inp.type = 'password'; }
+    inp.type = inp.type === 'password' ? 'text' : 'password';
   }
 
   function saveAIKey() {
     const inp = document.getElementById('ai-key-input');
     const val = inp.value.trim();
-    if (!val || val.startsWith('•')) {
-      const status = document.getElementById('ai-key-status');
+    const status = document.getElementById('ai-key-status');
+    if (!val) {
       status.style.display = 'block';
-      status.textContent = localStorage.getItem('ai_claude_key') ? '✅ מפתח קיים לא שונה' : '⚠️ נא להזין מפתח';
-      status.style.color = localStorage.getItem('ai_claude_key') ? 'var(--green)' : 'var(--yellow)';
+      status.textContent = '⚠️ נא להזין מפתח';
+      status.style.color = 'var(--yellow)';
       return;
     }
     localStorage.setItem('ai_claude_key', val);
-    const status = document.getElementById('ai-key-status');
+    inp.value = '';
     status.style.display = 'block';
-    status.textContent = '✅ נשמר בהצלחה';
+    status.textContent = '✅ נשמר: ' + val.slice(0, 12) + '...';
     status.style.color = 'var(--green)';
-    inp.value = '•'.repeat(20);
-    inp.dataset.filled = '1';
     updateAISettingsIcon();
-    setTimeout(closeAISettings, 900);
+    setTimeout(closeAISettings, 800);
   }
 
   function clearAIKey() {
     localStorage.removeItem('ai_claude_key');
     document.getElementById('ai-key-input').value = '';
-    document.getElementById('ai-key-input').dataset.filled = '';
     const status = document.getElementById('ai-key-status');
     status.style.display = 'block';
     status.textContent = 'מפתח נמחק';
