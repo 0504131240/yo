@@ -3603,7 +3603,7 @@ body { padding-bottom: 70px; }
     const rec = new SR();
     rec.lang = 'he-IL';
     rec.continuous = true;
-    rec.interimResults = true;
+    rec.interimResults = false;
     _speechRec = rec;
 
     rec.onstart = () => {
@@ -3614,12 +3614,12 @@ body { padding-bottom: 70px; }
     };
 
     rec.onresult = e => {
-      let interim = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) _speechFinal += e.results[i][0].transcript + ' ';
-        else interim += e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          _speechFinal += e.results[i][0].transcript + ' ';
+          document.getElementById(targetId).value = _speechFinal;
+        }
       }
-      document.getElementById(targetId).value = _speechFinal + interim;
     };
 
     rec.onend = () => {
@@ -3631,7 +3631,7 @@ body { padding-bottom: 70px; }
       if (status) status.style.display = 'none';
     };
 
-    rec.onerror = () => rec.stop();
+    rec.onerror = (e) => { if (e.error !== 'no-speech') rec.stop(); };
     rec.start();
   }
   // ─────────────────────────────────────────────────────────────────────────
