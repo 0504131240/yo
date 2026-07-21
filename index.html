@@ -1357,6 +1357,23 @@ body { padding-bottom: 70px; }
   </div>
 </div>
 
+<!-- AI SUMMARY PREVIEW -->
+<div id="aiPreviewOverlay" onclick="if(event.target===this)cancelAISummary()" style="position:fixed;inset:0;background:rgba(15,30,70,0.6);backdrop-filter:blur(6px);z-index:600;display:none;align-items:flex-end;justify-content:center;">
+  <div style="background:var(--surface);width:100%;max-width:540px;max-height:80vh;display:flex;flex-direction:column;border-radius:24px 24px 0 0;box-shadow:0 -8px 40px rgba(30,50,100,0.18);animation:slideUp 0.3s ease;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="font-weight:800;font-size:15px;">✨ סיכום AI — תצוגה מקדימה</div>
+      <button onclick="cancelAISummary()" style="width:32px;height:32px;border:1px solid var(--border);background:var(--bg);border-radius:8px;font-size:16px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:18px 20px;">
+      <div id="ai-preview-text" style="font-size:14px;line-height:1.8;color:var(--text);white-space:pre-wrap;"></div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0;">
+      <button onclick="cancelAISummary()" style="flex:1;padding:13px;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:12px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;">שמור מה שרשמתי</button>
+      <button onclick="applyAISummary()" style="flex:1;padding:13px;background:linear-gradient(135deg,#7c6ef7,#5c4fd6);color:#fff;border:none;border-radius:12px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;">החלף בסיכום AI</button>
+    </div>
+  </div>
+</div>
+
 <!-- AI SETTINGS -->
 <div id="aiSettingsOverlay" onclick="closeAISettingsOnOverlay(event)" style="position:fixed;inset:0;background:rgba(15,30,70,0.6);backdrop-filter:blur(6px);z-index:400;display:none;align-items:flex-end;justify-content:center;">
   <div style="background:var(--surface);width:100%;max-width:540px;border-radius:24px 24px 0 0;box-shadow:0 -8px 40px rgba(30,50,100,0.18);animation:slideUp 0.3s ease;padding:24px 24px 32px;">
@@ -3655,17 +3672,16 @@ body { padding-bottom: 70px; }
     btn.style.borderColor = localStorage.getItem('ai_claude_key') ? 'var(--accent)' : '';
   }
 
+  let _aiSummaryTarget = null;
+
   async function summarizeWithAI(targetId) {
     const key = localStorage.getItem('ai_claude_key');
-    if (!key) {
-      openAISettings();
-      return;
-    }
+    if (!key) { openAISettings(); return; }
     const ta = document.getElementById(targetId);
     const rawText = ta.value.trim();
     if (!rawText) { alert('אין טקסט לסיכום — תמלל קודם או הקלד את מה שהיה בטיפול.'); return; }
 
-    const sumBtn = [...document.querySelectorAll('button')].find(b => b.onclick && b.getAttribute('onclick') === `summarizeWithAI('${targetId}')`);
+    const sumBtn = document.querySelector(`button[onclick="summarizeWithAI('${targetId}')"]`);
     const originalLabel = sumBtn ? sumBtn.innerHTML : '';
     if (sumBtn) { sumBtn.innerHTML = '⏳ מסכם...'; sumBtn.disabled = true; }
 
@@ -3690,12 +3706,32 @@ body { padding-bottom: 70px; }
         throw new Error(err.error?.message || `שגיאה ${resp.status}`);
       }
       const data = await resp.json();
-      ta.value = data.content?.[0]?.text?.trim() || rawText;
+      const summary = data.content?.[0]?.text?.trim();
+      if (summary) showAISummaryPreview(targetId, summary);
     } catch (e) {
       alert('שגיאה בסיכום AI:\n' + e.message + '\n\nבדוק שהמפתח תקין בהגדרות ⚙️');
     } finally {
       if (sumBtn) { sumBtn.innerHTML = originalLabel; sumBtn.disabled = false; }
     }
+  }
+
+  function showAISummaryPreview(targetId, summary) {
+    _aiSummaryTarget = targetId;
+    document.getElementById('ai-preview-text').textContent = summary;
+    document.getElementById('aiPreviewOverlay').style.display = 'flex';
+  }
+
+  function applyAISummary() {
+    if (_aiSummaryTarget) {
+      document.getElementById(_aiSummaryTarget).value = document.getElementById('ai-preview-text').textContent;
+    }
+    document.getElementById('aiPreviewOverlay').style.display = 'none';
+    _aiSummaryTarget = null;
+  }
+
+  function cancelAISummary() {
+    document.getElementById('aiPreviewOverlay').style.display = 'none';
+    _aiSummaryTarget = null;
   }
   // ─────────────────────────────────────────────────────────────────────────
 
