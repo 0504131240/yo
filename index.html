@@ -665,6 +665,11 @@ body { padding-bottom: 70px; }
     <span id="sync-status" style="font-size:12px;color:var(--muted);transition:opacity 0.5s;white-space:nowrap;"></span>
     <button onclick="load()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;" title="רענן">🔄</button>
     <button onclick="openAISettings()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;" title="הגדרות AI" id="ai-settings-btn">⚙️</button>
+    <div id="user-badge" style="display:none;align-items:center;gap:6px;">
+      <img id="user-photo" style="width:30px;height:30px;border-radius:50%;border:2px solid var(--accent);object-fit:cover;display:none;" src="">
+      <button onclick="openSharePanel()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;" title="שתף">🔗</button>
+      <button onclick="doSignOut()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;" title="יציאה">🚪</button>
+    </div>
     <!-- Desktop only buttons -->
     <div class="desktop-nav-btns" style="display:flex;gap:8px;">
       <button class="btn-add" style="background:linear-gradient(135deg,#34c97b,#28a062);box-shadow:0 4px 12px rgba(52,201,123,0.25);padding:9px 16px;font-size:13px;" onclick="openMeetingModal()">➕ טיפול חדש</button>
@@ -1529,14 +1534,32 @@ body { padding-bottom: 70px; }
   }
 
   let _fb = null;
+  let currentUser = null;
+  let activeDataUid = null;
+
   async function fbInit() {
     if (_fb) return _fb;
-    const appMod = await import("https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js");
-    const fsMod = await import("https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js");
+    const [appMod, fsMod, authMod] = await Promise.all([
+      import("https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js"),
+      import("https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js"),
+    ]);
     const app = appMod.initializeApp(firebaseConfig);
     const db = fsMod.getFirestore(app);
-    _fb = { db, doc: fsMod.doc, getDoc: fsMod.getDoc, setDoc: fsMod.setDoc };
+    const auth = authMod.getAuth(app);
+    _fb = {
+      db, auth,
+      doc: fsMod.doc, getDoc: fsMod.getDoc, setDoc: fsMod.setDoc, deleteDoc: fsMod.deleteDoc,
+      GoogleAuthProvider: authMod.GoogleAuthProvider,
+      signInWithPopup: authMod.signInWithPopup,
+      signOut: authMod.signOut,
+      onAuthStateChanged: authMod.onAuthStateChanged,
+    };
     return _fb;
+  }
+
+  function emailToKey(email) {
+    return btoa(unescape(encodeURIComponent(email.toLowerCase()))).replace(/[+/=]/g, c => ({'+':'_p','/':'_s','=':''}[c]));
   }
 
   function isFirebaseConfigured() {
@@ -1602,36 +1625,38 @@ body { padding-bottom: 70px; }
   async function load() {
     if (!isFirebaseConfigured()) {
       showSyncStatus('⚠️ טרם הוגדר חיבור ל-Firebase', 'var(--yellow)');
-      loadLocal();
-      isLoaded = true;
-      render();
-      return;
+      loadLocal(); isLoaded = true; render(); return;
     }
+    if (!activeDataUid) { loadLocal(); isLoaded = true; render(); return; }
     showSyncStatus('🔄 טוען נתונים...', 'var(--muted)');
     try {
       const { db, doc, getDoc } = await fbInit();
-      const snap = await getDoc(doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID));
+      const snap = await getDoc(doc(db, 'userData', activeDataUid));
       if (snap.exists()) {
         normalizeLoadedData(snap.data());
-        isLoaded = true;
-        migrateDocumentIds();
+        isLoaded = true; migrateDocumentIds();
         showSyncStatus('✅ נטען בהצלחה', 'var(--green)');
-        saveLocal();
-        render();
-        return;
+        saveLocal(); render(); return;
       }
-      // המסמך עדיין לא קיים ב-Firestore - אתחול מסמך נתונים ריק חדש
+      // נסה לטעון מהמסלול הישן (מיגרציה)
+      if (activeDataUid === currentUser?.uid) {
+        const oldSnap = await getDoc(doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID));
+        if (oldSnap.exists()) {
+          normalizeLoadedData(oldSnap.data());
+          isLoaded = true; migrateDocumentIds();
+          await syncToFirestore();
+          showSyncStatus('✅ נתונים הועברו', 'var(--green)');
+          saveLocal(); render(); return;
+        }
+      }
       normalizeLoadedData({});
-      isLoaded = true;
-      saveLocal();
+      isLoaded = true; saveLocal();
       await syncToFirestore();
       showSyncStatus('✅ נוצר מסמך נתונים חדש', 'var(--green)');
       render();
     } catch (err) {
       console.warn('load failed:', err);
-      loadLocal();
-      isLoaded = true;
-      migrateDocumentIds();
+      loadLocal(); isLoaded = true; migrateDocumentIds();
       showSyncStatus('⚠️ עובד מקומית (שגיאת טעינה)', 'var(--red)');
       render();
     }
@@ -1660,7 +1685,9 @@ body { padding-bottom: 70px; }
       }));
       const cleanPayments = payments.map(p => ({ ...p, date: normalizeDate(p.date) }));
       const { db, doc, setDoc } = await fbInit();
-      await setDoc(doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID), { clients, treatments: cleanTreatments, payments: cleanPayments });
+      const dataPath = activeDataUid || FIRESTORE_DOC_ID;
+      const collection = activeDataUid ? 'userData' : FIRESTORE_COLLECTION;
+      await setDoc(doc(db, collection, dataPath), { clients, treatments: cleanTreatments, payments: cleanPayments });
       showSyncStatus('✅ נשמר', 'var(--green)');
     } catch (err) {
       showSyncStatus('❌ שגיאת שמירה: ' + err.message, 'var(--red)');
@@ -4103,7 +4130,141 @@ body { padding-bottom: 70px; }
     if (el) el.classList.add(map[tab] || 'active');
   }
 
-  load();
+  // ---- GOOGLE AUTH ----
+  async function initAuth() {
+    if (!isFirebaseConfigured()) { loadLocal(); isLoaded = true; render(); return; }
+    const fb = await fbInit();
+    fb.onAuthStateChanged(fb.auth, async user => {
+      if (user) {
+        currentUser = user;
+        // בדיקה אם המשתמש הוזמן על ידי מישהו
+        try {
+          const emailKey = emailToKey(user.email);
+          const shareSnap = await fb.getDoc(fb.doc(fb.db, 'userShares', emailKey));
+          activeDataUid = shareSnap.exists() ? shareSnap.data().ownerUid : user.uid;
+        } catch(e) { activeDataUid = user.uid; }
+        updateUserUI();
+        document.getElementById('loginOverlay').style.display = 'none';
+        await load();
+      } else {
+        currentUser = null; activeDataUid = null;
+        document.getElementById('loginOverlay').style.display = 'flex';
+      }
+    });
+  }
+
+  async function signInWithGoogle() {
+    const btn = document.getElementById('google-signin-btn');
+    const errEl = document.getElementById('login-error');
+    btn.disabled = true; btn.textContent = 'מתחבר...';
+    errEl.style.display = 'none';
+    try {
+      const fb = await fbInit();
+      const provider = new fb.GoogleAuthProvider();
+      await fb.signInWithPopup(fb.auth, provider);
+    } catch(e) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg> כניסה עם Google';
+      errEl.textContent = 'שגיאה בכניסה. נסה שוב.';
+      errEl.style.display = 'block';
+    }
+  }
+
+  async function doSignOut() {
+    if (!confirm('לצאת מהחשבון?')) return;
+    const fb = await fbInit();
+    await fb.signOut(fb.auth);
+  }
+
+  function updateUserUI() {
+    if (!currentUser) return;
+    const badge = document.getElementById('user-badge');
+    const photo = document.getElementById('user-photo');
+    if (badge) badge.style.display = 'flex';
+    if (photo && currentUser.photoURL) { photo.src = currentUser.photoURL; photo.style.display = 'block'; }
+  }
+
+  // ---- SHARE PANEL ----
+  async function openSharePanel() {
+    if (!currentUser) return;
+    const note = document.getElementById('share-owner-note');
+    if (activeDataUid !== currentUser.uid) {
+      note.textContent = 'אתה מחובר לנתונים של חשבון אחר. רק הבעלים יכול לנהל שיתופים.';
+      note.style.display = 'block';
+      document.getElementById('share-email-input').style.display = 'none';
+      document.querySelector('#shareOverlay button[onclick="addShare()"]') && (document.querySelector('#shareOverlay button[onclick="addShare()"]').style.display = 'none');
+    } else {
+      note.style.display = 'none';
+    }
+    await renderShareList();
+    document.getElementById('shareOverlay').style.display = 'flex';
+  }
+
+  function closeSharePanel() { document.getElementById('shareOverlay').style.display = 'none'; }
+  function closeShareOnOverlay(e) { if (e.target === document.getElementById('shareOverlay')) closeSharePanel(); }
+
+  async function renderShareList() {
+    if (!currentUser || activeDataUid !== currentUser.uid) { document.getElementById('share-list').innerHTML = ''; return; }
+    const fb = await fbInit();
+    // We store a list of shared emails in the user's own doc as sharedEmails
+    const dataSnap = await fb.getDoc(fb.doc(fb.db, 'userData', currentUser.uid));
+    const sharedEmails = dataSnap.exists() ? (dataSnap.data().sharedEmails || []) : [];
+    const listEl = document.getElementById('share-list');
+    if (sharedEmails.length === 0) { listEl.innerHTML = '<div style="color:var(--muted);">אין שיתופים פעילים</div>'; return; }
+    listEl.innerHTML = sharedEmails.map(email => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--surface2);border-radius:10px;margin-bottom:8px;">
+        <span style="direction:ltr;">${esc(email)}</span>
+        <button onclick="removeShare('${esc(email)}')" style="background:var(--red-light);color:var(--red);border:1px solid var(--red);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px;font-family:'Heebo',sans-serif;">הסר</button>
+      </div>`).join('');
+  }
+
+  async function addShare() {
+    if (!currentUser || activeDataUid !== currentUser.uid) return;
+    const email = document.getElementById('share-email-input').value.trim().toLowerCase();
+    if (!email || !email.includes('@')) { alert('נא להזין כתובת מייל תקינה'); return; }
+    const statusEl = document.getElementById('share-status');
+    statusEl.textContent = 'מוסיף...'; statusEl.style.display = 'block'; statusEl.style.color = 'var(--muted)';
+    try {
+      const fb = await fbInit();
+      const emailKey = emailToKey(email);
+      await fb.setDoc(fb.doc(fb.db, 'userShares', emailKey), {
+        ownerUid: currentUser.uid, ownerEmail: currentUser.email, sharedWithEmail: email,
+      });
+      // שמור רשימת שיתופים בתוך נתוני הבעלים
+      const dataSnap = await fb.getDoc(fb.doc(fb.db, 'userData', currentUser.uid));
+      const existing = dataSnap.exists() ? (dataSnap.data().sharedEmails || []) : [];
+      if (!existing.includes(email)) {
+        const { setDoc, doc } = fb;
+        await setDoc(doc(fb.db, 'userData', currentUser.uid), { ...dataSnap.data(), sharedEmails: [...existing, email] });
+      }
+      document.getElementById('share-email-input').value = '';
+      statusEl.textContent = '✅ שיתוף נוסף!'; statusEl.style.color = 'var(--green)';
+      setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+      await renderShareList();
+    } catch(e) {
+      statusEl.textContent = 'שגיאה: ' + e.message; statusEl.style.color = 'var(--red)';
+    }
+  }
+
+  async function removeShare(email) {
+    if (!currentUser || activeDataUid !== currentUser.uid) return;
+    if (!confirm('להסיר גישה של ' + email + '?')) return;
+    try {
+      const fb = await fbInit();
+      const emailKey = emailToKey(email);
+      await fb.deleteDoc(fb.doc(fb.db, 'userShares', emailKey));
+      const dataSnap = await fb.getDoc(fb.doc(fb.db, 'userData', currentUser.uid));
+      if (dataSnap.exists()) {
+        const existing = dataSnap.data().sharedEmails || [];
+        await fb.setDoc(fb.doc(fb.db, 'userData', currentUser.uid), {
+          ...dataSnap.data(), sharedEmails: existing.filter(e => e !== email)
+        });
+      }
+      await renderShareList();
+    } catch(e) { alert('שגיאה: ' + e.message); }
+  }
+
+  initAuth();
   updateAISettingsIcon();
 </script>
 <!-- BOTTOM NAV -->
@@ -4130,6 +4291,38 @@ body { padding-bottom: 70px; }
   </button>
 </nav>
 <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});</script>
+
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay" style="position:fixed;inset:0;background:linear-gradient(160deg,#0A0B1E,#13152F);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="text-align:center;max-width:360px;width:100%;">
+    <div style="font-size:48px;margin-bottom:12px;">📋</div>
+    <div style="font-family:'Heebo',sans-serif;font-size:28px;font-weight:800;color:#F8F7FF;margin-bottom:6px;">קלינו</div>
+    <div style="font-family:'Heebo',sans-serif;font-size:14px;color:rgba(255,255,255,0.55);margin-bottom:40px;">ניהול חכם לקליניקה</div>
+    <button onclick="signInWithGoogle()" id="google-signin-btn" style="width:100%;padding:16px;background:#fff;color:#1a1a1a;border:none;border-radius:14px;font-family:'Heebo',sans-serif;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+      כניסה עם Google
+    </button>
+    <div id="login-error" style="margin-top:14px;font-size:13px;color:#ff6b6b;font-family:'Heebo',sans-serif;display:none;"></div>
+  </div>
+</div>
+
+<!-- SHARE PANEL -->
+<div id="shareOverlay" onclick="closeShareOnOverlay(event)" style="position:fixed;inset:0;background:rgba(15,30,70,0.6);backdrop-filter:blur(6px);z-index:500;display:none;align-items:flex-end;justify-content:center;">
+  <div style="background:var(--surface);width:100%;max-width:540px;border-radius:24px 24px 0 0;box-shadow:0 -8px 40px rgba(30,50,100,0.18);animation:slideUp 0.3s ease;padding:24px 24px 36px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="font-weight:800;font-size:17px;">🔗 שיתוף גישה</div>
+      <button onclick="closeSharePanel()" style="width:32px;height:32px;border:1px solid var(--border);background:var(--bg);border-radius:8px;font-size:16px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+    <div id="share-owner-note" style="display:none;background:rgba(52,201,123,0.1);border:1px solid var(--green);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--green);margin-bottom:16px;"></div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;">הוסף מייל גוגל של אדם נוסף שיוכל לגשת לאותם נתונים.</div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <input type="email" id="share-email-input" placeholder="example@gmail.com" style="flex:1;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;background:var(--bg);color:var(--text);direction:ltr;">
+      <button onclick="addShare()" style="padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">הוסף</button>
+    </div>
+    <div id="share-list" style="font-size:13px;"></div>
+    <div id="share-status" style="font-size:13px;margin-top:10px;color:var(--green);display:none;"></div>
+  </div>
+</div>
 
 </body>
 </html>
