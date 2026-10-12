@@ -1,157 +1,801 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>קלינו — הניהול הוא עלינו. הטיפול הוא עליך.</title>
-<meta name="description" content="אפליקציית PWA לניהול קליניקה עבור פסיכולוגים, פיזיותרפיסטים, קלינאיות הקשורות ומטפלים — עם בינה מלאכותית מסייעת.">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>קלינו — ניהול חכם לקליניקה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;400;700;900&family=Heebo:wght@300;400;500;600;700;800;900&display=swap">
+
 <style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
   :root {
-    --bg1: #0A0B1E;
-    --bg2: #13152F;
-    --accent: #7C5CFC;
-    --accent2: #A78BFA;
-    --text: #F0F0FF;
-    --sub: #9090BB;
+    --paper: #F0EFF8;
+    --surface: #E8E6F5;
+    --border: #D4D0EC;
+    --ink: #1A1732;
+    --muted: #706C96;
+    --accent: #7C6EF7;
+    --accent-soft: #EDE9FE;
+    --teal: #3BC9A5;
+    --teal-soft: #DDF7F0;
+    --hero: #0A0B1E;
+    --hero-mid: #13152F;
+    --hero-border: rgba(124,110,247,0.18);
+    --white: #F8F7FF;
   }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0F0E22;
+      --surface: #16152E;
+      --border: #2A2850;
+      --ink: #E8E6FF;
+      --muted: #9390C0;
+      --accent-soft: #2A2460;
+      --teal-soft: #0D3028;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0F0E22;
+    --surface: #16152E;
+    --border: #2A2850;
+    --ink: #E8E6FF;
+    --muted: #9390C0;
+    --accent-soft: #2A2460;
+    --teal-soft: #0D3028;
+  }
+
+  html { direction: rtl; scroll-behavior: smooth; }
+
   body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    background: linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 100%);
-    min-height: 100vh;
-    color: var(--text);
+    font-family: 'Heebo', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ─── HERO ─────────────────────────────────── */
+  #hero {
+    position: relative;
+    background: var(--hero);
+    min-height: 92vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  #starfield {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.55;
+  }
+
+  .hero-inner {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 80px 24px 100px;
+    max-width: 820px;
+    margin: 0 auto;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 28px;
+  }
+  .eyebrow::before,
+  .eyebrow::after {
+    content: '';
+    width: 28px;
+    height: 1px;
+    background: var(--teal);
+    opacity: 0.5;
+  }
+
+  .hero-h1 {
+    font-family: 'Frank Ruhl Libre', serif;
+    font-size: clamp(2.6rem, 6vw, 5rem);
+    font-weight: 900;
+    line-height: 1.18;
+    color: var(--white);
+    text-wrap: balance;
+    margin-bottom: 22px;
+  }
+  .hero-h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    font-weight: 400;
+    color: rgba(232,230,255,0.65);
+    max-width: 520px;
+    margin: 0 auto 44px;
+    line-height: 1.7;
+  }
+
+  .hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-family: 'Heebo', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 16px 36px;
+    border-radius: 50px;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 40px rgba(124,110,247,0.35);
+  }
+  .hero-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 60px rgba(124,110,247,0.5);
+  }
+
+  .hero-scroll {
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 6px;
+    color: rgba(232,230,255,0.35);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    animation: bounce 2.5s infinite;
+  }
+  .hero-scroll::after {
+    content: '';
+    width: 1px;
+    height: 30px;
+    background: rgba(232,230,255,0.2);
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(6px); }
+  }
+
+  /* ─── SECTION SHARED ────────────────────────── */
+  section { padding: 90px 24px; }
+  .section-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .section-h2 {
+    font-family: 'Frank Ruhl Libre', serif;
+    font-size: clamp(1.9rem, 4vw, 3rem);
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--ink);
+    text-wrap: balance;
+    margin-bottom: 16px;
+  }
+  .section-lead {
+    font-size: 1.05rem;
+    color: var(--muted);
+    max-width: 500px;
+    line-height: 1.75;
+  }
+  .section-header {
+    max-width: 1100px;
+    margin: 0 auto 56px;
+  }
+
+  /* ─── FEATURES ──────────────────────────────── */
+  #features { background: var(--paper); }
+
+  .features-grid {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 720px) {
+    .features-grid { grid-template-columns: 1fr; }
+  }
+
+  .feat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .feat-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+  }
+  .feat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--accent-soft);
+    display: flex;
+    align-items: center;
     justify-content: center;
-    padding: 16px;
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+  .feat-title {
+    font-family: 'Frank Ruhl Libre', serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .feat-desc {
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* ─── AI SECTION ────────────────────────────── */
+  #ai-section {
+    background: var(--hero-mid);
+    position: relative;
+    overflow: hidden;
+  }
+  #ai-section::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    right: -120px;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(59,201,165,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  #ai-section::after {
+    content: '';
+    position: absolute;
+    bottom: -80px;
+    left: -80px;
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(124,110,247,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  #ai-section .section-h2 { color: var(--white); }
+  #ai-section .section-lead { color: rgba(232,230,255,0.55); }
+  #ai-section .section-label { color: var(--teal); }
+
+  .ai-grid {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+  @media (max-width: 760px) {
+    .ai-grid { grid-template-columns: 1fr; }
+    .ai-phone-wrap { order: -1; }
+  }
+
+  .ai-features-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .ai-feat {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .ai-feat-dot {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(59,201,165,0.12);
+    border: 1px solid rgba(59,201,165,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    margin-top: 2px;
+  }
+  .ai-feat-body {}
+  .ai-feat-title {
+    font-family: 'Frank Ruhl Libre', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+  .ai-feat-desc {
+    font-size: 0.88rem;
+    color: rgba(232,230,255,0.5);
+    line-height: 1.65;
+  }
+
+  /* ─── PHONE MOCKUP ──────────────────────────── */
+  .ai-phone-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .phone-frame {
+    width: 240px;
+    height: 480px;
+    background: #0d0f20;
+    border-radius: 36px;
+    border: 1.5px solid rgba(124,110,247,0.4);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 0 6px rgba(124,110,247,0.06), inset 0 1px 0 rgba(255,255,255,0.06);
     overflow: hidden;
     position: relative;
   }
-  /* Stars background */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,.4) 0%, transparent 100%),
-      radial-gradient(1px 1px at 40% 60%, rgba(255,255,255,.3) 0%, transparent 100%),
-      radial-gradient(1.5px 1.5px at 70% 15%, rgba(255,255,255,.5) 0%, transparent 100%),
-      radial-gradient(1px 1px at 85% 75%, rgba(255,255,255,.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 25% 85%, rgba(255,255,255,.2) 0%, transparent 100%),
-      radial-gradient(1.5px 1.5px at 55% 40%, rgba(255,255,255,.4) 0%, transparent 100%),
-      radial-gradient(1px 1px at 90% 30%, rgba(255,255,255,.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 10% 55%, rgba(255,255,255,.2) 0%, transparent 100%),
-      radial-gradient(1px 1px at 60% 90%, rgba(255,255,255,.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 30% 10%, rgba(255,255,255,.4) 0%, transparent 100%);
-    pointer-events: none;
-    z-index: 0;
+  .phone-notch {
+    width: 60px;
+    height: 8px;
+    background: #1c1e38;
+    border-radius: 0 0 8px 8px;
+    margin: 10px auto 0;
   }
-  .container {
-    position: relative;
-    z-index: 1;
-    max-width: 560px;
-    width: 100%;
-    text-align: center;
+  .phone-screen {
+    padding: 10px 10px 0;
+    height: calc(100% - 28px);
+    overflow: hidden;
+    direction: rtl;
+    font-family: 'Heebo', sans-serif;
+  }
+  .ph-topbar {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
     align-items: center;
-    gap: 20px;
+    margin-bottom: 10px;
   }
-  .pwa-badge {
-    background: rgba(124,92,252,.15);
-    border: 1px solid rgba(124,92,252,.4);
-    color: var(--accent2);
+  .ph-logo {
+    font-size: 11px;
+    font-weight: 800;
+    color: #a89af9;
+  }
+  .ph-sync {
+    font-size: 9px;
+    color: #4ECBA8;
+    font-weight: 700;
+  }
+  .ph-client-card {
+    background: #1a1c38;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(124,110,247,0.2);
+    cursor: pointer;
+  }
+  .ph-client-name {
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 3px;
-    padding: 5px 16px;
-    border-radius: 20px;
-    text-transform: uppercase;
+    color: #e8e6ff;
+    margin-bottom: 3px;
   }
-  .logo {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent) 0%, #5B3EE8 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32px;
-    box-shadow: 0 0 40px rgba(124,92,252,.4);
+  .ph-client-meta {
+    font-size: 9px;
+    color: #706c96;
   }
-  h1 {
-    font-size: clamp(28px, 7vw, 48px);
-    font-weight: 700;
-    line-height: 1.2;
-    color: var(--text);
-  }
-  h1 .accent {
-    background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  .subtitle {
-    color: var(--sub);
-    font-size: clamp(13px, 3.5vw, 16px);
-    line-height: 1.7;
-    max-width: 440px;
-  }
-  .cta {
+  .ph-badge {
     display: inline-block;
-    background: linear-gradient(135deg, var(--accent) 0%, #5B3EE8 100%);
-    color: #fff;
-    font-size: 16px;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-size: 8px;
     font-weight: 700;
-    padding: 14px 36px;
-    border-radius: 30px;
-    text-decoration: none;
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 4px 24px rgba(124,92,252,.4);
-    transition: transform .15s, box-shadow .15s;
+    margin-top: 5px;
   }
-  .cta:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(124,92,252,.55); }
-  .features {
+  .ph-badge-green { background: rgba(78,203,168,0.15); color: #4ecba8; }
+  .ph-badge-red { background: rgba(231,76,60,0.15); color: #e74c3c; }
+  .ph-ai-btn {
+    width: 100%;
+    padding: 9px;
+    background: linear-gradient(135deg,#7c6ef7,#5c4fd6);
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    margin-top: 6px;
+    cursor: pointer;
+  }
+  .ph-section-label {
+    font-size: 9px;
+    font-weight: 800;
+    color: #706c96;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 10px 0 6px;
+  }
+
+  /* ─── TRUST SECTION ─────────────────────────── */
+  #trust {
+    background: var(--paper);
+    text-align: center;
+  }
+  .trust-inner {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .trust-badges {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
     justify-content: center;
-    margin-top: 4px;
+    margin-top: 36px;
   }
-  .feature {
-    background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.08);
-    border-radius: 20px;
-    padding: 6px 14px;
+  .trust-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--surface);
+  }
+  .trust-badge span { font-size: 16px; }
+
+  /* ─── FINAL CTA ─────────────────────────────── */
+  #final-cta {
+    background: var(--hero);
+    text-align: center;
+  }
+  #final-cta .section-h2 {
+    color: var(--white);
+    max-width: 600px;
+    margin: 0 auto 12px;
+  }
+  .cta-sub {
+    color: rgba(232,230,255,0.45);
+    font-size: 1rem;
+    margin-bottom: 40px;
+  }
+  .cta-pair {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-family: 'Heebo', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 15px 32px;
+    border-radius: 50px;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 40px rgba(124,110,247,0.3);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 60px rgba(124,110,247,0.45);
+  }
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    color: rgba(232,230,255,0.6);
+    font-family: 'Heebo', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 15px 32px;
+    border-radius: 50px;
+    text-decoration: none;
+    border: 1px solid rgba(232,230,255,0.15);
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-ghost:hover {
+    border-color: rgba(232,230,255,0.35);
+    color: rgba(232,230,255,0.85);
+  }
+
+  /* footer */
+  footer {
+    background: var(--hero);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 24px;
+    text-align: center;
     font-size: 12px;
-    color: var(--sub);
+    color: rgba(232,230,255,0.25);
+    font-weight: 500;
   }
-  .footer {
-    margin-top: 16px;
-    font-size: 11px;
-    color: rgba(144,144,187,.5);
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-cta, .feat-card, .btn-primary { transition: none; }
+    .hero-scroll { animation: none; }
   }
 </style>
-</head>
-<body>
-<div class="container">
-  <div class="pwa-badge">PWA</div>
-  <div class="logo">🧠</div>
-  <h1>הניהול הוא עלינו.<br><span class="accent">הטיפול הוא עליך.</span></h1>
-  <p class="subtitle">
-    אפליקציה לניהול קליניקה עבור פסיכולוגים, פיזיותרפיסטים, קלינאיות הקשורות ומטפלים — עם בינה מלאכותית מסייעת, שמחשבת ומסייעת.
-  </p>
-  <a class="cta" href="../">לגלות את האפליקציה</a>
-  <div class="features">
-    <span class="feature">📅 ניהול מטופלים</span>
-    <span class="feature">💳 תשלומים</span>
-    <span class="feature">🤖 בינה מלאכותית</span>
-    <span class="feature">📱 PWA</span>
-    <span class="feature">☁️ ענן</span>
+
+<!-- ══ HERO ══════════════════════════════════════════════ -->
+<section id="hero">
+  <canvas id="starfield"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">PWA · עברית · בינה מלאכותית</div>
+    <h1 class="hero-h1">הניהול הוא עלינו.<br><em>הטיפול הוא עליך.</em></h1>
+    <p class="hero-sub">אפליקציה לניהול קליניקה עבור פסיכולוגים, פסיכותרפיסטים, קלינאיות תקשורת ומטפלים — עם בינה מלאכותית מובנית שמסכמת, מתמללת ומסייעת.</p>
+    <a href="#features" class="hero-cta">גלה את הפיצ'רים ↓</a>
   </div>
-  <div class="footer">klino-app.vercel.app</div>
-</div>
-</body>
-</html>
+  <div class="hero-scroll">גלול</div>
+</section>
+
+<!-- ══ FEATURES ══════════════════════════════════════════ -->
+<section id="features">
+  <div class="section-header">
+    <div class="section-label">פיצ'רים</div>
+    <h2 class="section-h2">כל מה שצריך כדי לנהל קלינו מקצועית</h2>
+    <p class="section-lead">ממסך אחד — לקוחות, טיפולים, תשלומים ומסמכים. בלי ניירת, בלי אקסל.</p>
+  </div>
+  <div class="features-grid">
+    <div class="feat-card">
+      <div class="feat-icon">👤</div>
+      <div class="feat-title">ניהול לקוחות</div>
+      <p class="feat-desc">כרטיס לקוח מלא: שם, טלפון, ת"ז, שעת טיפול שבועית וכל ההיסטוריה במקום אחד.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📋</div>
+      <div class="feat-title">היסטוריית טיפולים</div>
+      <p class="feat-desc">רשימת טיפולים לפי שנה, סטטוס תשלום, סיכום טיפול — ולחיצה אחת לעריכה.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">💳</div>
+      <div class="feat-title">מעקב תשלומים</div>
+      <p class="feat-desc">ייצור תשלומים, מעקב אחר חובות פתוחים וסה"כ שולם — לכל לקוח ובסה"כ.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📄</div>
+      <div class="feat-title">מסמכים</div>
+      <p class="feat-desc">שמירת הסכמים, אבחונים, דוחות והפניות — לכל לקוח, עם צפייה ישירה באפליקציה.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📅</div>
+      <div class="feat-title">תזמון שבועי</div>
+      <p class="feat-desc">לוח חודשי ממנו רואים את כל הטיפולים; שעת הפגישה השבועית מוצעת אוטומטית.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">💾</div>
+      <div class="feat-title">שמירה מקומית</div>
+      <p class="feat-desc">הנתונים שמורים ישירות על המכשיר שלך — פרטיים, מהירים, זמינים גם ללא אינטרנט.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FREE FEATURES ══════════════════════════════════════ -->
+<section id="ai-section">
+  <div class="ai-grid">
+    <div>
+      <div class="section-label">כלול בבסיס</div>
+      <h2 class="section-h2">תמלול קולי — בחינם</h2>
+      <p class="section-lead" style="margin-bottom:40px;">תמלול ישיר לשדה הסיכום — בעברית, אוטומטי, ללא עלות. עובד דרך המיקרופון של המכשיר, בלי שרת חיצוני.</p>
+      <div class="ai-features-list">
+        <div class="ai-feat">
+          <div class="ai-feat-dot">🎙</div>
+          <div class="ai-feat-body">
+            <div class="ai-feat-title">דבר — זה מתמלל</div>
+            <div class="ai-feat-desc">תאר מה היה בטיפול בקולך וזה יירשם ישירות. בעברית, אוטומטי, בלי עלות נוספת.</div>
+          </div>
+        </div>
+        <div class="ai-feat">
+          <div class="ai-feat-dot">⚡</div>
+          <div class="ai-feat-body">
+            <div class="ai-feat-title">עובד על המכשיר</div>
+            <div class="ai-feat-desc">התמלול מבוצע ישירות בדפדפן — אין שליחת נתונים לשרת, אין עלות, אין תלות בחיבור.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phone mockup -->
+    <div class="ai-phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="ph-topbar">
+            <div class="ph-logo">✦ קלינו</div>
+            <div class="ph-sync">✅ נשמר</div>
+          </div>
+          <div class="ph-section-label">לקוחות פעילים</div>
+          <div class="ph-client-card">
+            <div class="ph-client-name">שרה כהן</div>
+            <div class="ph-client-meta">ראשון 10:00 · 14 טיפולים</div>
+            <div><span class="ph-badge ph-badge-green">שולם</span></div>
+          </div>
+          <div class="ph-client-card" style="border-color:rgba(231,76,60,0.25);">
+            <div class="ph-client-name">דוד לוי</div>
+            <div class="ph-client-meta">רביעי 14:30 · 8 טיפולים</div>
+            <div><span class="ph-badge ph-badge-red">חוב: ₪700</span></div>
+          </div>
+          <div class="ph-section-label">סיכום טיפול אחרון</div>
+          <div style="background:#1a1c38;border-radius:10px;padding:10px;margin-bottom:8px;border:1px solid rgba(59,201,165,0.2);">
+            <div style="font-size:9px;color:#706c96;margin-bottom:5px;">27/07/2026 · שולם ₪350</div>
+            <div style="font-size:10px;color:#b8b4e0;line-height:1.5;">עבדנו על דפוסי חשיבה שלילית הקשורים לעבודה...</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;background:#1a1c38;border-radius:10px;padding:9px;border:1px solid rgba(124,110,247,0.3);">
+            <div style="width:8px;height:8px;border-radius:50%;background:#e74c3c;animation:pulse 1.2s infinite;"></div>
+            <div style="font-size:9px;color:#b8b4e0;font-weight:700;">● מתמלל... לחץ לעצירה</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ PREMIUM SECTION ════════════════════════════════════ -->
+<section id="premium-section" style="background:var(--paper);padding:90px 24px;">
+  <div class="section-header" style="max-width:1100px;margin:0 auto 48px;">
+    <div class="section-label" style="color:var(--teal);">תוספות פרימיום</div>
+    <h2 class="section-h2">AI וסנכרון ענן — בתוספת תשלום</h2>
+    <p class="section-lead">לא כל אחד צריך את זה — אבל מי שכן, מקבל שדרוג משמעותי.</p>
+  </div>
+  <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:24px;">
+    <div style="background:linear-gradient(135deg,rgba(124,110,247,0.06),rgba(92,79,214,0.03));border:1px solid rgba(124,110,247,0.25);border-radius:20px;padding:32px;">
+      <div style="display:inline-block;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:800;letter-spacing:0.1em;padding:4px 12px;border-radius:20px;margin-bottom:20px;">תוספת AI</div>
+      <div style="font-family:'Frank Ruhl Libre',serif;font-size:1.3rem;font-weight:700;color:var(--ink);margin-bottom:10px;">סיכומי בינה מלאכותית</div>
+      <p style="font-size:0.9rem;color:var(--muted);line-height:1.7;margin-bottom:20px;">סיכום אוטומטי לכל טיפול, וסיכום כולל לכל היסטוריית הלקוח — מטרות, עבודה שנעשתה, התקדמות. תצוגה מקדימה לפני החלפה.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);"><span style="color:var(--accent);">✓</span> סיכום טיפול בודד בלחיצה</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);"><span style="color:var(--accent);">✓</span> סיכום כל הטיפולים של לקוח</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);"><span style="color:var(--accent);">✓</span> נשמר בתיק המסמכים</div>
+      </div>
+    </div>
+    <div style="background:linear-gradient(135deg,rgba(59,201,165,0.06),rgba(46,191,160,0.03));border:1px solid rgba(59,201,165,0.25);border-radius:20px;padding:32px;">
+      <div style="display:inline-block;background:var(--teal-soft);color:var(--teal);font-size:11px;font-weight:800;letter-spacing:0.1em;padding:4px 12px;border-radius:20px;margin-bottom:20px;">תוספת ענן</div>
+      <div style="font-family:'Frank Ruhl Libre',serif;font-size:1.3rem;font-weight:700;color:var(--ink);margin-bottom:10px;">סנכרון בין מכשירים</div>
+      <p style="font-size:0.9rem;color:var(--muted);line-height:1.7;margin-bottom:20px;">גישה לנתונים מהמחשב, הטאבלט והפלאפון — מסונכרנים בזמן אמת. גיבוי אוטומטי בענן.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);"><span style="color:var(--teal);">✓</span> גישה מכל מכשיר</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);"><span style="color:var(--teal);">✓</span> גיבוי אוטומטי</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);"><span style="color:var(--teal);">✓</span> עדכון בזמן אמת</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  @media(max-width:640px){#premium-section .section-header+div{grid-template-columns:1fr!important}}
+</style>
+
+<!-- ══ TRUST ══════════════════════════════════════════════ -->
+<section id="trust">
+  <div class="trust-inner">
+    <div class="section-label" style="text-align:center;">למה קלינו?</div>
+    <h2 class="section-h2">בנויה בדיוק למטפלים</h2>
+    <p class="section-lead" style="margin:0 auto;text-align:center;">לא כלי CRM גנרי. לא גיליון אקסל. אפליקציה שמבינה את הצרכים של עבודה טיפולית — לפסיכולוגים, פסיכותרפיסטים, קלינאיות תקשורת ומטפלים בכל תחום.</p>
+    <div class="trust-badges">
+      <div class="trust-badge"><span>🔒</span> נתונים פרטיים לחלוטין</div>
+      <div class="trust-badge"><span>📱</span> PWA — עובד על כל מכשיר</div>
+      <div class="trust-badge"><span>🇮🇱</span> עברית מלאה, RTL</div>
+      <div class="trust-badge"><span>💾</span> נתונים שמורים על המכשיר</div>
+      <div class="trust-badge"><span>⚡</span> עובד גם ללא אינטרנט</div>
+      <div class="trust-badge"><span>🤖</span> AI זמין כתוספת</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FINAL CTA ════════════════════════════════════════ -->
+<section id="final-cta">
+  <h2 class="section-h2">מוכן לנהל את הקלינו שלך?</h2>
+  <p class="cta-sub">האפליקציה מגיעה כקובץ להתקנה — ללא הורדה מחנות, ללא הרשמה.</p>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:8px;">
+    <div style="display:inline-flex;align-items:center;gap:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(232,230,255,0.12);border-radius:16px;padding:20px 32px;">
+      <div style="font-size:28px;">📦</div>
+      <div style="text-align:right;">
+        <div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:4px;">קובץ התקנה — שלח לנו הודעה</div>
+        <div style="font-size:13px;color:rgba(232,230,255,0.45);">נשלח ישירות אליך · תוספות פרימיום זמינות לפי בקשה</div>
+      </div>
+    </div>
+    <a href="../" style="display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:#fff;font-family:'Heebo',sans-serif;font-size:16px;font-weight:700;padding:15px 36px;border-radius:50px;text-decoration:none;box-shadow:0 0 30px rgba(124,110,247,0.35);transition:transform 0.2s,box-shadow 0.2s;"
+      onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 0 50px rgba(124,110,247,0.5)'"
+      onmouseout="this.style.transform='';this.style.boxShadow='0 0 30px rgba(124,110,247,0.35)'">
+      🚀 כנס לאפליקציה
+    </a>
+    <a href="https://wa.me/9720504131240?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%9C%20%D7%A4%D7%A8%D7%98%D7%99%D7%9D%20%D7%A2%D7%9C%20%D7%90%D7%A4%D7%9C%D7%99%D7%A7%D7%A6%D7%99%D7%99%D7%AA%20%D7%94%D7%A7%D7%9C%D7%99%D7%A0%D7%99%D7%A7%D7%94"
+      target="_blank"
+      style="display:inline-flex;align-items:center;gap:10px;background:#25D366;color:#fff;font-family:'Heebo',sans-serif;font-size:16px;font-weight:700;padding:15px 36px;border-radius:50px;text-decoration:none;box-shadow:0 0 30px rgba(37,211,102,0.3);transition:transform 0.2s,box-shadow 0.2s;"
+      onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 0 50px rgba(37,211,102,0.45)'"
+      onmouseout="this.style.transform='';this.style.boxShadow='0 0 30px rgba(37,211,102,0.3)'">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.091.535 4.06 1.472 5.785L.057 23.57a.75.75 0 0 0 .921.921l5.784-1.415A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.655-.51-5.18-1.399l-.37-.216-3.838.938.957-3.838-.228-.381A9.945 9.945 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+      שלח הודעה בוואטסאפ
+    </a>
+  </div>
+</section>
+
+<footer>קלינו · ניהול חכם לפסיכולוגים, קלינאיות תקשורת ומטפלים · 2026</footer>
+
+<script>
+  // ─── constellation canvas ───────────────────────────────
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let W, H, pts;
+
+  function resize() {
+    W = canvas.width = canvas.offsetWidth;
+    H = canvas.height = canvas.offsetHeight;
+  }
+
+  function init() {
+    resize();
+    const count = Math.floor((W * H) / 18000);
+    pts = Array.from({ length: count }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.5,
+    }));
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const LINK = 130;
+
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0) p.x = W;
+      if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H;
+      if (p.y > H) p.y = 0;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(168,154,249,0.55)';
+      ctx.fill();
+
+      for (let j = i + 1; j < pts.length; j++) {
+        const q = pts[j];
+        const dx = p.x - q.x, dy = p.y - q.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < LINK) {
+          const a = (1 - d / LINK) * 0.22;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(q.x, q.y);
+          ctx.strokeStyle = `rgba(124,110,247,${a})`;
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', () => { resize(); init(); });
+  init();
+  draw();
+</script>
