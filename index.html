@@ -664,7 +664,6 @@ body { padding-bottom: 70px; }
   <div style="display:flex;align-items:center;gap:8px;">
     <span id="sync-status" style="font-size:12px;color:var(--muted);transition:opacity 0.5s;white-space:nowrap;"></span>
     <button onclick="load()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;" title="רענן">🔄</button>
-    <button onclick="openBizSettings()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;" title="הגדרות עסק">🏢</button>
     <button onclick="openAISettings()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;" title="הגדרות AI" id="ai-settings-btn">⚙️</button>
     <!-- Desktop only buttons -->
     <div class="desktop-nav-btns" style="display:flex;gap:8px;">
@@ -1417,38 +1416,6 @@ body { padding-bottom: 70px; }
     <div id="ai-key-status" style="font-size:12px;margin-bottom:16px;display:none;"></div>
     <button onclick="saveAIKey()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-family:'Heebo',sans-serif;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px;">שמור מפתח</button>
     <button onclick="clearAIKey()" style="width:100%;padding:10px;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:12px;font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;">מחק מפתח שמור</button>
-  </div>
-</div>
-
-<!-- BUSINESS SETTINGS OVERLAY -->
-<div id="bizSettingsOverlay" onclick="closeBizSettingsOnOverlay(event)" style="position:fixed;inset:0;background:rgba(15,30,70,0.6);backdrop-filter:blur(6px);z-index:400;display:none;align-items:flex-end;justify-content:center;">
-  <div style="background:var(--surface);width:100%;max-width:540px;border-radius:24px 24px 0 0;box-shadow:0 -8px 40px rgba(30,50,100,0.18);animation:slideUp 0.3s ease;padding:24px 24px 32px;max-height:90vh;overflow-y:auto;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-      <div style="font-weight:800;font-size:17px;">🏢 הגדרות עסק</div>
-      <button onclick="closeBizSettings()" style="width:32px;height:32px;border:1px solid var(--border);background:var(--bg);border-radius:8px;font-size:16px;cursor:pointer;color:var(--muted);">✕</button>
-    </div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;">פרטים אלה יופיעו בקבלות שתפיק.</div>
-    <div class="form-row">
-      <label>שם עסק / שם מלא</label>
-      <input type="text" id="biz-name" placeholder="לאלי שטיינהרט קלינאית תקשורת">
-    </div>
-    <div class="form-row">
-      <label>ע.פ. (מספר עוסק פטור)</label>
-      <input type="text" id="biz-taxid" placeholder="000000000">
-    </div>
-    <div class="form-row">
-      <label>טלפון</label>
-      <input type="tel" id="biz-phone" placeholder="050-0000000">
-    </div>
-    <div class="form-row">
-      <label>אימייל</label>
-      <input type="email" id="biz-email" placeholder="you@gmail.com">
-    </div>
-    <div class="form-row">
-      <label>תיאור שירות</label>
-      <input type="text" id="biz-service" placeholder="טיפול קלינאית תקשורת">
-    </div>
-    <button onclick="saveBizSettings()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-family:'Heebo',sans-serif;font-size:16px;font-weight:700;cursor:pointer;">שמור הגדרות</button>
   </div>
 </div>
 
@@ -3274,37 +3241,6 @@ body { padding-bottom: 70px; }
     });
   }
 
-  function openBizSettings() {
-    const biz = JSON.parse(localStorage.getItem('biz_settings') || '{}');
-    document.getElementById('biz-name').value = biz.name || '';
-    document.getElementById('biz-taxid').value = biz.taxid || '';
-    document.getElementById('biz-phone').value = biz.phone || '';
-    document.getElementById('biz-email').value = biz.email || '';
-    document.getElementById('biz-service').value = biz.service || '';
-    document.getElementById('bizSettingsOverlay').style.display = 'flex';
-  }
-
-  function closeBizSettings() {
-    document.getElementById('bizSettingsOverlay').style.display = 'none';
-  }
-
-  function closeBizSettingsOnOverlay(e) {
-    if (e.target === document.getElementById('bizSettingsOverlay')) closeBizSettings();
-  }
-
-  function saveBizSettings() {
-    const biz = {
-      name: document.getElementById('biz-name').value.trim(),
-      taxid: document.getElementById('biz-taxid').value.trim(),
-      phone: document.getElementById('biz-phone').value.trim(),
-      email: document.getElementById('biz-email').value.trim(),
-      service: document.getElementById('biz-service').value.trim(),
-    };
-    localStorage.setItem('biz_settings', JSON.stringify(biz));
-    closeBizSettings();
-    const btn = document.querySelector('[onclick="openBizSettings()"]');
-    if (btn) { btn.style.borderColor = 'var(--green)'; }
-  }
 
   function closePatientHistory() {
     document.getElementById('patientHistoryOverlay').classList.remove('open');
