@@ -674,6 +674,7 @@ body { padding-bottom: 70px; }
           <div id="dropdown-user-email" style="font-size:11px;color:var(--muted);margin-top:2px;"></div>
         </div>
         <button onclick="openAISettings();closeSettingsDropdown();" style="width:100%;padding:12px 16px;background:none;border:none;cursor:pointer;text-align:right;font-size:14px;color:var(--ink);display:flex;align-items:center;gap:10px;" id="ai-settings-btn">⚙️ <span>הגדרות AI</span></button>
+        <button onclick="openBudgetSettings();closeSettingsDropdown();" style="width:100%;padding:12px 16px;background:none;border:none;cursor:pointer;text-align:right;font-size:14px;color:var(--ink);display:flex;align-items:center;gap:10px;">💰 <span>חיבור לאפליקציית התקציב</span></button>
         <div id="dropdown-auth-actions" style="display:none;">
           <button onclick="openSharePanel();closeSettingsDropdown();" style="width:100%;padding:12px 16px;background:none;border:none;cursor:pointer;text-align:right;font-size:14px;color:var(--ink);display:flex;align-items:center;gap:10px;">🔗 <span>שתף גישה</span></button>
           <div style="height:1px;background:var(--border);margin:2px 0;"></div>
@@ -1436,6 +1437,30 @@ body { padding-bottom: 70px; }
   </div>
 </div>
 
+<!-- BUDGET APP CONNECTION -->
+<div id="budgetOverlay" onclick="if(event.target===this)closeBudgetSettings()" style="position:fixed;inset:0;background:rgba(15,30,70,0.6);backdrop-filter:blur(6px);z-index:400;display:none;align-items:flex-end;justify-content:center;">
+  <div role="dialog" aria-modal="true" aria-labelledby="budgetTitle" style="background:var(--surface);width:100%;max-width:540px;border-radius:24px 24px 0 0;box-shadow:0 -8px 40px rgba(30,50,100,0.18);animation:slideUp 0.3s ease;padding:24px 24px 32px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div id="budgetTitle" style="font-weight:800;font-size:17px;">💰 חיבור לאפליקציית התקציב</div>
+      <button onclick="closeBudgetSettings()" aria-label="סגור" style="width:32px;height:32px;border:1px solid var(--border);background:var(--bg);border-radius:8px;font-size:16px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;">
+      כל תשלום שנרשם כאן ייכנס אוטומטית לאפליקציית התקציב בתור הכנסה, בחודש של תאריך התשלום. עדכון או מחיקה של תשלום מתעדכנים גם שם.<br>
+      את הכתובת מעתיקים מאפליקציית התקציב: הגדרות ← קליטת חיובים מהטלפון ← "העתק". שמות המטופלים לא נשלחים.
+    </div>
+    <div class="form-row" style="margin-bottom:12px;">
+      <label for="budget-url-input">הכתובת מאפליקציית התקציב</label>
+      <input type="text" id="budget-url-input" placeholder="https://takchiv.vercel.app/api/ingest?key=..." dir="ltr" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;">
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:14px;cursor:pointer;">
+      <input type="checkbox" id="budget-backfill" style="width:17px;height:17px;"> לשלוח גם את התשלומים שכבר נרשמו מתחילת החודש הנוכחי
+    </label>
+    <div id="budget-status" role="status" style="font-size:12px;margin-bottom:16px;"></div>
+    <button onclick="saveBudgetLink()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-family:'Heebo',sans-serif;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px;">חבר</button>
+    <button onclick="clearBudgetLink()" style="width:100%;padding:10px;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:12px;font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;">נתק</button>
+  </div>
+</div>
+
 <!-- SCHEDULE TIME PICKER -->
 <div id="stpOverlay" onclick="closeStpOnOverlay(event)" style="position:fixed;inset:0;background:rgba(15,30,70,0.6);backdrop-filter:blur(6px);z-index:600;display:none;align-items:flex-end;justify-content:center;">
   <div id="stpModal" style="background:var(--surface);width:100%;max-width:540px;max-height:88vh;display:flex;flex-direction:column;border-radius:24px 24px 0 0;box-shadow:0 -8px 40px rgba(30,50,100,0.18);animation:slideUp 0.3s ease;">
@@ -1678,6 +1703,7 @@ body { padding-bottom: 70px; }
   function save() {
     if (!isLoaded) { console.log('שמירה בוטלה — טרם נטען'); return; }
     saveLocal();
+    budgetSyncSoon();
     if (!isFirebaseConfigured()) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(syncToFirestore, 400);
@@ -3675,6 +3701,77 @@ body { padding-bottom: 70px; }
     document.getElementById('meetingStep1').style.display = 'block';
     document.getElementById('meetingStep2').style.display = 'none';
   }
+
+  // ─── Budget app connection ───────────────────────────────────────────────
+  // Every payment is sent to the budget app (takchiv) as income through its /api/income, with the
+  // personal key the user copies from there. What was sent is remembered per payment (on this device),
+  // so a changed payment is re-sent and a removed one is deleted there. Client names are not sent.
+  const BUDGET_KEY = 'budget-link', BUDGET_SENT = 'budget-sent';
+  function budgetLink() { try { return JSON.parse(localStorage.getItem(BUDGET_KEY) || 'null'); } catch (e) { return null; } }
+  function budgetSent() { try { return JSON.parse(localStorage.getItem(BUDGET_SENT) || '{}'); } catch (e) { return {}; } }
+  const budgetSig = p => [p.total || 0, normalizeDate(p.date), p.method || ''].join('|');
+  const budgetDesc = p => 'קלינו' + (p.method ? ' · ' + p.method : '');
+
+  function openBudgetSettings() {
+    const l = budgetLink(), st = document.getElementById('budget-status');
+    document.getElementById('budget-url-input').value = '';
+    st.textContent = l ? '✅ מחובר' + (l.last ? ' · עדכון אחרון ' + new Date(l.last).toLocaleString('he-IL') : '') + (l.error ? ' · ⚠️ ' + l.error : '') : 'לא מחובר';
+    st.style.color = l ? (l.error ? 'var(--yellow)' : 'var(--green)') : 'var(--muted)';
+    document.getElementById('budgetOverlay').style.display = 'flex';
+  }
+  function closeBudgetSettings() { document.getElementById('budgetOverlay').style.display = 'none'; }
+
+  function saveBudgetLink() {
+    const raw = document.getElementById('budget-url-input').value.trim(), st = document.getElementById('budget-status');
+    // Accept the address copied from the budget app (…/api/ingest?key=…) or the key alone
+    let key = '', origin = 'https://takchiv.vercel.app';
+    try { const u = new URL(raw); key = u.searchParams.get('key') || ''; origin = u.origin; } catch (e) { key = raw; }
+    if (!/^[A-Za-z0-9]{20,64}$/.test(key)) { st.textContent = '⚠️ לא נמצא מפתח בכתובת. העתק אותה שוב מאפליקציית התקציב.'; st.style.color = 'var(--yellow)'; return; }
+    localStorage.setItem(BUDGET_KEY, JSON.stringify({ key, url: origin + '/api/income' }));
+    // Payments that already exist count as sent, except this month's when asked to send them
+    const now = new Date(), fromStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
+    const backfill = document.getElementById('budget-backfill').checked, sent = {};
+    payments.forEach(p => { if (!(backfill && normalizeDate(p.date) >= fromStr)) sent[p.id] = budgetSig(p); });
+    localStorage.setItem(BUDGET_SENT, JSON.stringify(sent));
+    st.textContent = '✅ מחובר. תשלומים חדשים יישלחו לתקציב.'; st.style.color = 'var(--green)';
+    budgetSyncSoon(0);
+    setTimeout(closeBudgetSettings, 1200);
+  }
+  function clearBudgetLink() {
+    localStorage.removeItem(BUDGET_KEY); localStorage.removeItem(BUDGET_SENT);
+    const st = document.getElementById('budget-status'); st.textContent = 'נותק. תשלומים לא יישלחו יותר לתקציב.'; st.style.color = 'var(--muted)';
+  }
+
+  let budgetTimer = null, budgetBusy = false;
+  function budgetSyncSoon(ms) { if (!budgetLink()) return; clearTimeout(budgetTimer); budgetTimer = setTimeout(budgetSync, ms ?? 1500); }
+  async function budgetSync() {
+    const l = budgetLink();
+    if (!l || !isLoaded || budgetBusy) return;
+    budgetBusy = true;
+    const sent = budgetSent(), post = body => fetch(l.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: l.key, ...body }) });
+    let error = '';
+    try {
+      for (const p of payments) {
+        const sig = budgetSig(p);
+        if (sent[p.id] === sig || !(p.total > 0)) continue;
+        const r = await post({ id: p.id, amount: p.total, desc: budgetDesc(p), date: normalizeDate(p.date) });
+        if (r.status === 401) { error = 'המפתח לא תקין — חבר מחדש'; break; }
+        if (!r.ok) { error = 'השליחה נכשלה, ננסה שוב'; break; }
+        sent[p.id] = sig; localStorage.setItem(BUDGET_SENT, JSON.stringify(sent));
+      }
+      if (!error) for (const id of Object.keys(sent)) {
+        if (payments.some(p => String(p.id) === id)) continue;
+        const r = await post({ id, delete: true });
+        if (!r.ok) { error = 'השליחה נכשלה, ננסה שוב'; break; }
+        delete sent[id]; localStorage.setItem(BUDGET_SENT, JSON.stringify(sent));
+      }
+    } catch (e) { error = 'אין חיבור, ננסה שוב'; }
+    localStorage.setItem(BUDGET_KEY, JSON.stringify({ ...l, last: Date.now(), error }));
+    budgetBusy = false;
+    if (error && error.includes('ננסה')) budgetSyncSoon(60000);
+  }
+  // Retry what wasn't sent yet once the data has loaded
+  (function waitLoaded() { if (isLoaded) budgetSyncSoon(2000); else setTimeout(waitLoaded, 2000); })();
 
   // ─── AI Settings ─────────────────────────────────────────────────────────
   function openAISettings() {
