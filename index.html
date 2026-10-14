@@ -1542,6 +1542,16 @@ body { padding-bottom: 70px; }
   let clients = [];
   let treatments = [];
   let payments = []; // קבוצות תשלום
+  // Connection to the budget app (see "Budget app connection" below); also saved with the business data
+  let budgetCleared = false; // disconnected on this device: saved as budgetLink: null
+  let budgetCfg = (() => {
+    try {
+      const c = JSON.parse(localStorage.getItem('budget-link') || 'null');
+      // Connected with the first version: what this device already sent or skipped counts as handled everywhere
+      if (c && c.key && !c.skip) { c.skip = Object.keys(JSON.parse(localStorage.getItem('budget-sent') || '{}')); delete c.last; delete c.error; }
+      return c;
+    } catch (e) { return null; }
+  })();
   let currentFilter = 'all';
   let selectedClientFilter = '';
   let editingClientId = null;
@@ -1620,6 +1630,8 @@ body { padding-bottom: 70px; }
   }
 
   function normalizeLoadedData(data) {
+    // The budget connection is shared through the business data (null = disconnected on another device)
+    if (data && 'budgetLink' in data) { budgetCfg = data.budgetLink; budgetCleared = !data.budgetLink; try { budgetCfg ? localStorage.setItem('budget-link', JSON.stringify(budgetCfg)) : localStorage.removeItem('budget-link'); } catch (e) {} }
     payments = (data.payments || []).map(p => ({ ...p, date: normalizeDate(p.date) }));
     clients = (data.clients || []).map(c => ({
       ...c,
@@ -1725,7 +1737,10 @@ body { padding-bottom: 70px; }
       const { db, doc, setDoc } = await fbInit();
       const dataPath = activeDataUid || FIRESTORE_DOC_ID;
       const collection = activeDataUid ? 'userData' : FIRESTORE_COLLECTION;
-      await setDoc(doc(db, collection, dataPath), { clients, treatments: cleanTreatments, payments: cleanPayments });
+      const data = { clients, treatments: cleanTreatments, payments: cleanPayments };
+      // A device that never connected leaves the field out, so it can't disconnect the others; disconnecting writes null
+      if (budgetCfg || budgetCleared) data.budgetLink = budgetCfg || null;
+      await setDoc(doc(db, collection, dataPath), data);
       showSyncStatus('✅ נשמר', 'var(--green)');
     } catch (err) {
       showSyncStatus('❌ שגיאת שמירה: ' + err.message, 'var(--red)');
@@ -3704,19 +3719,25 @@ body { padding-bottom: 70px; }
 
   // ─── Budget app connection ───────────────────────────────────────────────
   // Every payment is sent to the budget app (takchiv) as income through its /api/income, with the
-  // personal key the user copies from there. What was sent is remembered per payment (on this device),
-  // so a changed payment is re-sent and a removed one is deleted there. Client names are not sent.
-  const BUDGET_KEY = 'budget-link', BUDGET_SENT = 'budget-sent';
-  function budgetLink() { try { return JSON.parse(localStorage.getItem(BUDGET_KEY) || 'null'); } catch (e) { return null; } }
+  // personal key the user copies from there. The connection is saved with the business data, so every
+  // device signed in to this business sends what it hasn't sent yet: on opening, on returning to the
+  // app and after each save. Sending the same payment twice only updates it there. What this device
+  // sent is remembered, so an edited payment is re-sent and a removed one is deleted there.
+  // Client names are not sent.
+  const BUDGET_SENT = 'budget-sent';
+  function budgetLink() { return budgetCfg && budgetCfg.key ? budgetCfg : null; }
   function budgetSent() { try { return JSON.parse(localStorage.getItem(BUDGET_SENT) || '{}'); } catch (e) { return {}; } }
   const budgetSig = p => [p.total || 0, normalizeDate(p.date), p.method || ''].join('|');
   const budgetDesc = p => 'קלינו' + (p.method ? ' · ' + p.method : '');
+  function budgetStatus(st) {
+    try { return JSON.parse(localStorage.getItem('budget-status') || '{}'); } catch (e) { return {}; }
+  }
 
   function openBudgetSettings() {
-    const l = budgetLink(), st = document.getElementById('budget-status');
+    const l = budgetLink(), s = budgetStatus(), st = document.getElementById('budget-status');
     document.getElementById('budget-url-input').value = '';
-    st.textContent = l ? '✅ מחובר' + (l.last ? ' · עדכון אחרון ' + new Date(l.last).toLocaleString('he-IL') : '') + (l.error ? ' · ⚠️ ' + l.error : '') : 'לא מחובר';
-    st.style.color = l ? (l.error ? 'var(--yellow)' : 'var(--green)') : 'var(--muted)';
+    st.textContent = l ? '✅ מחובר' + (s.last ? ' · שליחה אחרונה ' + new Date(s.last).toLocaleString('he-IL') : '') + (s.error ? ' · ⚠️ ' + s.error : '') : 'לא מחובר';
+    st.style.color = l ? (s.error ? 'var(--yellow)' : 'var(--green)') : 'var(--muted)';
     document.getElementById('budgetOverlay').style.display = 'flex';
   }
   function closeBudgetSettings() { document.getElementById('budgetOverlay').style.display = 'none'; }
@@ -3727,37 +3748,43 @@ body { padding-bottom: 70px; }
     let key = '', origin = 'https://takchiv.vercel.app';
     try { const u = new URL(raw); key = u.searchParams.get('key') || ''; origin = u.origin; } catch (e) { key = raw; }
     if (!/^[A-Za-z0-9]{20,64}$/.test(key)) { st.textContent = '⚠️ לא נמצא מפתח בכתובת. העתק אותה שוב מאפליקציית התקציב.'; st.style.color = 'var(--yellow)'; return; }
-    localStorage.setItem(BUDGET_KEY, JSON.stringify({ key, url: origin + '/api/income' }));
-    // Payments that already exist count as sent, except this month's when asked to send them
+    // Payments that already exist are not sent, except this month's when asked
     const now = new Date(), fromStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
-    const backfill = document.getElementById('budget-backfill').checked, sent = {};
-    payments.forEach(p => { if (!(backfill && normalizeDate(p.date) >= fromStr)) sent[p.id] = budgetSig(p); });
-    localStorage.setItem(BUDGET_SENT, JSON.stringify(sent));
-    st.textContent = '✅ מחובר. תשלומים חדשים יישלחו לתקציב.'; st.style.color = 'var(--green)';
+    const backfill = document.getElementById('budget-backfill').checked;
+    const skip = payments.filter(p => !(backfill && normalizeDate(p.date) >= fromStr)).map(p => String(p.id));
+    budgetCfg = { key, url: origin + '/api/income', skip, at: Date.now() }; budgetCleared = false;
+    try { localStorage.setItem('budget-link', JSON.stringify(budgetCfg)); localStorage.removeItem(BUDGET_SENT); localStorage.removeItem('budget-status'); } catch (e) {}
+    save();
+    st.textContent = '✅ מחובר. תשלומים חדשים יישלחו לתקציב, מכל מכשיר שמחובר לעסק.'; st.style.color = 'var(--green)';
     budgetSyncSoon(0);
     setTimeout(closeBudgetSettings, 1200);
   }
   function clearBudgetLink() {
-    localStorage.removeItem(BUDGET_KEY); localStorage.removeItem(BUDGET_SENT);
+    budgetCfg = null; budgetCleared = true;
+    try { localStorage.removeItem('budget-link'); localStorage.removeItem(BUDGET_SENT); localStorage.removeItem('budget-status'); } catch (e) {}
+    save();
     const st = document.getElementById('budget-status'); st.textContent = 'נותק. תשלומים לא יישלחו יותר לתקציב.'; st.style.color = 'var(--muted)';
   }
 
-  let budgetTimer = null, budgetBusy = false;
-  function budgetSyncSoon(ms) { if (!budgetLink()) return; clearTimeout(budgetTimer); budgetTimer = setTimeout(budgetSync, ms ?? 1500); }
+  let budgetTimer = null, budgetBusy = false, budgetAgain = false;
+  function budgetSyncSoon(ms) { if (!budgetLink()) return; clearTimeout(budgetTimer); budgetTimer = setTimeout(budgetSync, ms ?? 300); }
   async function budgetSync() {
     const l = budgetLink();
-    if (!l || !isLoaded || budgetBusy) return;
+    if (!l || !isLoaded) return;
+    if (budgetBusy) { budgetAgain = true; return; }
     budgetBusy = true;
-    const sent = budgetSent(), post = body => fetch(l.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: l.key, ...body }) });
+    const skip = new Set(l.skip || []), sent = budgetSent();
+    // keepalive: the request still completes if the app is closed right after saving
+    const post = body => fetch(l.url, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: l.key, ...body }) });
     let error = '';
     try {
       for (const p of payments) {
-        const sig = budgetSig(p);
-        if (sent[p.id] === sig || !(p.total > 0)) continue;
-        const r = await post({ id: p.id, amount: p.total, desc: budgetDesc(p), date: normalizeDate(p.date) });
+        const id = String(p.id), sig = budgetSig(p);
+        if (skip.has(id) || sent[id] === sig || !(p.total > 0)) continue;
+        const r = await post({ id, amount: p.total, desc: budgetDesc(p), date: normalizeDate(p.date) });
         if (r.status === 401) { error = 'המפתח לא תקין — חבר מחדש'; break; }
         if (!r.ok) { error = 'השליחה נכשלה, ננסה שוב'; break; }
-        sent[p.id] = sig; localStorage.setItem(BUDGET_SENT, JSON.stringify(sent));
+        sent[id] = sig; localStorage.setItem(BUDGET_SENT, JSON.stringify(sent));
       }
       if (!error) for (const id of Object.keys(sent)) {
         if (payments.some(p => String(p.id) === id)) continue;
@@ -3766,12 +3793,15 @@ body { padding-bottom: 70px; }
         delete sent[id]; localStorage.setItem(BUDGET_SENT, JSON.stringify(sent));
       }
     } catch (e) { error = 'אין חיבור, ננסה שוב'; }
-    localStorage.setItem(BUDGET_KEY, JSON.stringify({ ...l, last: Date.now(), error }));
+    try { localStorage.setItem('budget-status', JSON.stringify({ last: Date.now(), error })); } catch (e) {}
     budgetBusy = false;
-    if (error && error.includes('ננסה')) budgetSyncSoon(60000);
+    if (budgetAgain) { budgetAgain = false; budgetSyncSoon(); }
+    else if (error && error.includes('ננסה')) budgetSyncSoon(60000);
   }
-  // Retry what wasn't sent yet once the data has loaded
-  (function waitLoaded() { if (isLoaded) budgetSyncSoon(2000); else setTimeout(waitLoaded, 2000); })();
+  // Send what wasn't sent yet: once the data has loaded, when returning to the app, and every few minutes
+  (function waitLoaded() { if (isLoaded) budgetSyncSoon(500); else setTimeout(waitLoaded, 1000); })();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') budgetSyncSoon(500); });
+  setInterval(() => budgetSyncSoon(0), 3 * 60 * 1000);
 
   // ─── AI Settings ─────────────────────────────────────────────────────────
   function openAISettings() {
