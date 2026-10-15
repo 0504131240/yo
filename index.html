@@ -4454,6 +4454,22 @@ body { padding-bottom: 70px; }
     <span>לקוחות</span>
   </button>
 </nav>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/twemoji.min.js" crossorigin="anonymous"></script>
+<script>
+  let _emojiTimer;
+  function applyTwemoji() {
+    twemoji.parse(document.body, { folder: 'svg', ext: '.svg',
+      attributes: () => ({ style: 'height:1.2em;width:1.2em;vertical-align:-0.2em;' }) });
+  }
+  document.addEventListener('DOMContentLoaded', applyTwemoji);
+  const _emojiObserver = new MutationObserver(() => {
+    clearTimeout(_emojiTimer);
+    _emojiTimer = setTimeout(applyTwemoji, 120);
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    _emojiObserver.observe(document.body, { childList: true, subtree: true });
+  });
+</script>
 <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});</script>
 
 <!-- LOGIN OVERLAY -->
