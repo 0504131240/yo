@@ -1449,6 +1449,10 @@ body { padding-bottom: 70px; }
       <input type="checkbox" id="budget-backfill" style="width:17px;height:17px;"> לשלוח גם את התשלומים שכבר נרשמו מתחילת החודש הנוכחי
     </label>
     <div id="budget-status" role="status" style="font-size:12px;margin-bottom:16px;"></div>
+    <div id="budget-recent" style="display:none;font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:14px;">
+      <div id="budget-recent-text" style="margin-bottom:8px;"></div>
+      <button onclick="resendBudgetRecent()" style="width:100%;padding:9px;background:var(--surface);color:var(--accent);border:1px solid var(--accent);border-radius:10px;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">🔄 לשלוח שוב לתקציב את התשלומים מהחודש הקודם והחודש הזה</button>
+    </div>
     <button onclick="saveBudgetLink()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-family:'Heebo',sans-serif;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px;">חבר</button>
     <button onclick="clearBudgetLink()" style="width:100%;padding:10px;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:12px;font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;">נתק</button>
   </div>
@@ -3739,7 +3743,42 @@ body { padding-bottom: 70px; }
     document.getElementById('budget-url-input').value = '';
     st.textContent = l ? '✅ מחובר' + (s.last ? ' · שליחה אחרונה ' + new Date(s.last).toLocaleString('he-IL') : '') + (s.error ? ' · ⚠️ ' + s.error : '') : 'לא מחובר';
     st.style.color = l ? (s.error ? 'var(--yellow)' : 'var(--green)') : 'var(--muted)';
+    renderBudgetRecent();
     document.getElementById('budgetOverlay').style.display = 'flex';
+  }
+  // Payments from the start of last month: how many this device sent to the budget, and a way to send them again
+  // (sending again only updates them there, so nothing is doubled)
+  function budgetRecent() {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
+    const from = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+    return payments.filter(p => p.total > 0 && normalizeDate(p.date) >= from);
+  }
+  function renderBudgetRecent() {
+    const l = budgetLink(), box = document.getElementById('budget-recent');
+    const list = l ? budgetRecent() : [];
+    box.style.display = list.length ? 'block' : 'none';
+    if (!list.length) return;
+    const skip = new Set(l.skip || []), sent = budgetSent();
+    const nSent = list.filter(p => sent[String(p.id)] === budgetSig(p)).length;
+    const nSkip = list.filter(p => skip.has(String(p.id))).length;
+    document.getElementById('budget-recent-text').textContent =
+      'מהחודש הקודם עד היום: ' + list.length + ' תשלומים · ' + nSent + ' נשלחו מהמכשיר הזה' + (nSkip ? ' · ' + nSkip + ' סומנו כלא לשליחה' : '');
+  }
+  function resendBudgetRecent() {
+    const l = budgetLink(); if (!l) return;
+    const ids = new Set(budgetRecent().map(p => String(p.id))), sent = budgetSent();
+    l.skip = (l.skip || []).filter(id => !ids.has(id));
+    ids.forEach(id => delete sent[id]);
+    try { localStorage.setItem('budget-link', JSON.stringify(l)); localStorage.setItem(BUDGET_SENT, JSON.stringify(sent)); } catch (e) {}
+    save();
+    const st = document.getElementById('budget-status'); st.textContent = '🔄 שולח לתקציב...'; st.style.color = 'var(--muted)';
+    budgetSyncSoon(0);
+    // Show the result once the sending is done
+    let tries = 0;
+    const t = setInterval(() => {
+      tries++;
+      if ((tries > 2 && !budgetBusy) || tries > 40) { clearInterval(t); if (document.getElementById('budgetOverlay').style.display === 'flex') openBudgetSettings(); }
+    }, 500);
   }
   function closeBudgetSettings() { document.getElementById('budgetOverlay').style.display = 'none'; }
 
