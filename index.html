@@ -3741,10 +3741,25 @@ body { padding-bottom: 70px; }
   function openBudgetSettings() {
     const l = budgetLink(), s = budgetStatus(), st = document.getElementById('budget-status');
     document.getElementById('budget-url-input').value = '';
-    st.textContent = l ? '✅ מחובר' + (s.last ? ' · שליחה אחרונה ' + new Date(s.last).toLocaleString('he-IL') : '') + (s.error ? ' · ⚠️ ' + s.error : '') : 'לא מחובר';
+    const prof = l ? budgetProfileName(l) : '';
+    st.textContent = l ? '✅ מחובר' + (prof ? ' לפרופיל "' + prof + '"' : '') + (s.last ? ' · שליחה אחרונה ' + new Date(s.last).toLocaleString('he-IL') : '') + (s.error ? ' · ⚠️ ' + s.error : '') : 'לא מחובר';
     st.style.color = l ? (s.error ? 'var(--yellow)' : 'var(--green)') : 'var(--muted)';
     renderBudgetRecent();
     document.getElementById('budgetOverlay').style.display = 'flex';
+    // Ask the budget app which profile the key belongs to, and show it once known
+    if (l) budgetCheckProfile(l).then(name => { if (name && name !== prof && document.getElementById('budgetOverlay').style.display === 'flex') openBudgetSettings(); });
+  }
+  // Name of the budget profile the income goes to, remembered per key on this device
+  function budgetProfileName(l) {
+    try { const p = JSON.parse(localStorage.getItem('budget-profile') || 'null'); return p && p.key === l.key ? p.name : ''; } catch (e) { return ''; }
+  }
+  async function budgetCheckProfile(l) {
+    try {
+      const r = await fetch(l.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: l.key, ping: true }) });
+      const j = r.ok ? await r.json() : null;
+      if (j && j.profile) { localStorage.setItem('budget-profile', JSON.stringify({ key: l.key, name: j.profile })); return j.profile; }
+    } catch (e) {}
+    return '';
   }
   // Payments from the start of last month: how many this device sent to the budget, and a way to send them again
   // (sending again only updates them there, so nothing is doubled)
@@ -3796,8 +3811,9 @@ body { padding-bottom: 70px; }
     try { localStorage.setItem('budget-link', JSON.stringify(budgetCfg)); localStorage.removeItem(BUDGET_SENT); localStorage.removeItem('budget-status'); } catch (e) {}
     save();
     st.textContent = '✅ מחובר. תשלומים חדשים יישלחו לתקציב, מכל מכשיר שמחובר לעסק.'; st.style.color = 'var(--green)';
+    budgetCheckProfile(budgetCfg).then(name => { if (name) st.textContent = '✅ מחובר לפרופיל "' + name + '". תשלומים חדשים יישלחו לתקציב, מכל מכשיר שמחובר לעסק.'; });
     budgetSyncSoon(0);
-    setTimeout(closeBudgetSettings, 1200);
+    setTimeout(closeBudgetSettings, 2500);
   }
   function clearBudgetLink() {
     budgetCfg = null; budgetCleared = true;
