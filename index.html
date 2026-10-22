@@ -1449,6 +1449,10 @@ body { padding-bottom: 70px; }
       <input type="checkbox" id="budget-backfill" style="width:17px;height:17px;"> לשלוח גם את התשלומים שכבר נרשמו מתחילת החודש הנוכחי
     </label>
     <div id="budget-status" role="status" style="font-size:12px;margin-bottom:16px;"></div>
+    <div id="budget-recent" style="display:none;font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:14px;">
+      <div id="budget-recent-text" style="margin-bottom:8px;"></div>
+      <button onclick="resendBudgetRecent()" style="width:100%;padding:9px;background:var(--surface);color:var(--accent);border:1px solid var(--accent);border-radius:10px;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">🔄 לשלוח שוב לתקציב את התשלומים מהחודש הקודם והחודש הזה</button>
+    </div>
     <button onclick="saveBudgetLink()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-family:'Heebo',sans-serif;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px;">חבר</button>
     <button onclick="clearBudgetLink()" style="width:100%;padding:10px;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:12px;font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;">נתק</button>
   </div>
@@ -1586,12 +1590,20 @@ body { padding-bottom: 70px; }
     ]);
     const app = appMod.initializeApp(firebaseConfig);
     const db = fsMod.getFirestore(app);
-    const auth = authMod.getAuth(app);
+    // Stay signed in on this device: keep the session in IndexedDB (localStorage as a fallback)
+    let auth;
+    try {
+      auth = authMod.initializeAuth(app, {
+        persistence: [authMod.indexedDBLocalPersistence, authMod.browserLocalPersistence],
+        popupRedirectResolver: authMod.browserPopupRedirectResolver,
+      });
+    } catch (e) { auth = authMod.getAuth(app); }
     _fb = {
       db, auth,
       doc: fsMod.doc, getDoc: fsMod.getDoc, setDoc: fsMod.setDoc, deleteDoc: fsMod.deleteDoc,
       GoogleAuthProvider: authMod.GoogleAuthProvider,
       signInWithPopup: authMod.signInWithPopup,
+      signInWithRedirect: authMod.signInWithRedirect,
       signOut: authMod.signOut,
       onAuthStateChanged: authMod.onAuthStateChanged,
     };
@@ -3731,7 +3743,42 @@ body { padding-bottom: 70px; }
     document.getElementById('budget-url-input').value = '';
     st.textContent = l ? '✅ מחובר' + (s.last ? ' · שליחה אחרונה ' + new Date(s.last).toLocaleString('he-IL') : '') + (s.error ? ' · ⚠️ ' + s.error : '') : 'לא מחובר';
     st.style.color = l ? (s.error ? 'var(--yellow)' : 'var(--green)') : 'var(--muted)';
+    renderBudgetRecent();
     document.getElementById('budgetOverlay').style.display = 'flex';
+  }
+  // Payments from the start of last month: how many this device sent to the budget, and a way to send them again
+  // (sending again only updates them there, so nothing is doubled)
+  function budgetRecent() {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
+    const from = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+    return payments.filter(p => p.total > 0 && normalizeDate(p.date) >= from);
+  }
+  function renderBudgetRecent() {
+    const l = budgetLink(), box = document.getElementById('budget-recent');
+    const list = l ? budgetRecent() : [];
+    box.style.display = list.length ? 'block' : 'none';
+    if (!list.length) return;
+    const skip = new Set(l.skip || []), sent = budgetSent();
+    const nSent = list.filter(p => sent[String(p.id)] === budgetSig(p)).length;
+    const nSkip = list.filter(p => skip.has(String(p.id))).length;
+    document.getElementById('budget-recent-text').textContent =
+      'מהחודש הקודם עד היום: ' + list.length + ' תשלומים · ' + nSent + ' נשלחו מהמכשיר הזה' + (nSkip ? ' · ' + nSkip + ' סומנו כלא לשליחה' : '');
+  }
+  function resendBudgetRecent() {
+    const l = budgetLink(); if (!l) return;
+    const ids = new Set(budgetRecent().map(p => String(p.id))), sent = budgetSent();
+    l.skip = (l.skip || []).filter(id => !ids.has(id));
+    ids.forEach(id => delete sent[id]);
+    try { localStorage.setItem('budget-link', JSON.stringify(l)); localStorage.setItem(BUDGET_SENT, JSON.stringify(sent)); } catch (e) {}
+    save();
+    const st = document.getElementById('budget-status'); st.textContent = '🔄 שולח לתקציב...'; st.style.color = 'var(--muted)';
+    budgetSyncSoon(0);
+    // Show the result once the sending is done
+    let tries = 0;
+    const t = setInterval(() => {
+      tries++;
+      if ((tries > 2 && !budgetBusy) || tries > 40) { clearInterval(t); if (document.getElementById('budgetOverlay').style.display === 'flex') openBudgetSettings(); }
+    }, 500);
   }
   function closeBudgetSettings() { document.getElementById('budgetOverlay').style.display = 'none'; }
 
@@ -4264,9 +4311,14 @@ body { padding-bottom: 70px; }
 
   // ---- GOOGLE AUTH ----
   async function initAuth() {
-    if (!isFirebaseConfigured()) { loadLocal(); isLoaded = true; render(); return; }
-    const fb = await fbInit();
+    if (!isFirebaseConfigured()) { document.getElementById('loginOverlay').style.display = 'none'; loadLocal(); isLoaded = true; render(); return; }
+    // While the saved sign-in is being restored, show "connecting" instead of the sign-in button
+    const waitTimer = setTimeout(() => showLoginButton(), 10000);
+    let fb;
+    try { fb = await fbInit(); }
+    catch (e) { clearTimeout(waitTimer); showLoginButton('אין חיבור לאינטרנט. נסה שוב.'); return; }
     fb.onAuthStateChanged(fb.auth, async user => {
+      clearTimeout(waitTimer);
       if (user) {
         currentUser = user;
         // בדיקה אם המשתמש הוזמן על ידי מישהו
@@ -4281,8 +4333,16 @@ body { padding-bottom: 70px; }
       } else {
         currentUser = null; activeDataUid = null;
         document.getElementById('loginOverlay').style.display = 'flex';
+        showLoginButton();
       }
     });
+  }
+
+  function showLoginButton(err) {
+    document.getElementById('login-wait').style.display = 'none';
+    document.getElementById('login-actions').style.display = 'block';
+    const errEl = document.getElementById('login-error');
+    if (err) { errEl.textContent = err; errEl.style.display = 'block'; }
   }
 
   async function signInWithGoogle() {
@@ -4293,7 +4353,12 @@ body { padding-bottom: 70px; }
     try {
       const fb = await fbInit();
       const provider = new fb.GoogleAuthProvider();
-      await fb.signInWithPopup(fb.auth, provider);
+      try { await fb.signInWithPopup(fb.auth, provider); }
+      catch (e) {
+        // The installed app may block the sign-in window: sign in on the same page instead
+        if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/cancelled-popup-request'].includes(e.code)) { await fb.signInWithRedirect(fb.auth, provider); return; }
+        throw e;
+      }
     } catch(e) {
       btn.disabled = false;
       btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg> כניסה עם Google';
@@ -4478,11 +4543,14 @@ body { padding-bottom: 70px; }
     <div style="font-size:48px;margin-bottom:12px;">📋</div>
     <div style="font-family:'Heebo',sans-serif;font-size:28px;font-weight:800;color:#F8F7FF;margin-bottom:6px;">קלינו</div>
     <div style="font-family:'Heebo',sans-serif;font-size:14px;color:rgba(255,255,255,0.55);margin-bottom:40px;">ניהול חכם לקליניקה</div>
+    <div id="login-wait" style="font-family:'Heebo',sans-serif;font-size:15px;color:rgba(255,255,255,0.75);">⏳ מתחבר לחשבון...</div>
+    <div id="login-actions" style="display:none;">
     <button onclick="signInWithGoogle()" id="google-signin-btn" style="width:100%;padding:16px;background:#fff;color:#1a1a1a;border:none;border-radius:14px;font-family:'Heebo',sans-serif;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
       <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
       כניסה עם Google
     </button>
     <div id="login-error" style="margin-top:14px;font-size:13px;color:#ff6b6b;font-family:'Heebo',sans-serif;display:none;"></div>
+    </div>
   </div>
 </div>
 
