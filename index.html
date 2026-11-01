@@ -1600,7 +1600,7 @@ body { padding-bottom: 70px; }
     } catch (e) { auth = authMod.getAuth(app); }
     _fb = {
       db, auth,
-      doc: fsMod.doc, getDoc: fsMod.getDoc, setDoc: fsMod.setDoc, deleteDoc: fsMod.deleteDoc,
+      doc: fsMod.doc, getDoc: fsMod.getDoc, setDoc: fsMod.setDoc, deleteDoc: fsMod.deleteDoc, increment: fsMod.increment,
       GoogleAuthProvider: authMod.GoogleAuthProvider,
       signInWithPopup: authMod.signInWithPopup,
       signInWithRedirect: authMod.signInWithRedirect,
@@ -1608,6 +1608,16 @@ body { padding-bottom: 70px; }
       onAuthStateChanged: authMod.onAuthStateChanged,
     };
     return _fb;
+  }
+
+  // Counts each app open per signed-in email for the owner's dashboard (logins/{email}; rules in README)
+  function logLogin(fb, user) {
+    try {
+      const em = (user.email || '').toLowerCase();
+      if (!em || sessionStorage.getItem('cm-login') === em) return;
+      sessionStorage.setItem('cm-login', em);
+      fb.setDoc(fb.doc(fb.db, 'logins', em), { email: em, name: user.displayName || '', lastSeen: Date.now(), count: fb.increment(1) }, { merge: true }).catch(() => {});
+    } catch (e) {}
   }
 
   function emailToKey(email) {
@@ -4337,6 +4347,7 @@ body { padding-bottom: 70px; }
       clearTimeout(waitTimer);
       if (user) {
         currentUser = user;
+        logLogin(fb, user);
         // בדיקה אם המשתמש הוזמן על ידי מישהו
         try {
           const emailKey = emailToKey(user.email);
